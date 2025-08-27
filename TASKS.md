@@ -49,7 +49,7 @@
 - [ ] Create core orchestrator module
   - [ ] Implement src/gpu_randomise/core/orchestrator.py skeleton
   - [ ] Define workflow coordination interface
-  -ননull Write unit tests for orchestrator
+  - [ ] Write unit tests for orchestrator
 - [ ] Set up logging framework
   - [ ] Create consistent logging configuration
   - [ ] Implement progress reporting interface
