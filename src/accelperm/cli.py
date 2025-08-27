@@ -251,8 +251,12 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
 
         if config["backend"] == "cpu":
             backend = CPUBackend()
+        elif config["backend"] == "mps":
+            from accelperm.backends.mps import MPSBackend
+
+            backend = MPSBackend()
         else:
-            # For now, only CPU backend is implemented
+            # Only CPU and MPS backends are implemented
             raise ValueError(f"Backend '{config['backend']}' not yet implemented")
 
         if not backend.is_available():
