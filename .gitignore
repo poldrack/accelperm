@@ -171,6 +171,16 @@ $RECYCLE.BIN/
 *.con
 *.grp
 
+# GPU specific
+*.cubin
+*.fatbin
+*.ptx
+
+# Model checkpoints and weights
+*.pth
+*.ckpt
+checkpoints/
+
 # Profiling
 *.prof
 *.lprof

@@ -14,6 +14,19 @@ You are helping develop a high-performance Python application for GPU-accelerate
 - Add newly discovered tasks to TASKS.md
 - use SCRATCHPAD.md as a scratchpad to outline plans
 
+## FSL Implementation Reference
+
+**IMPORTANT**: Use the detailed pseudocode in `PSEUDOCODE.md` as the authoritative reference when implementing FSL-compatible components. This file contains comprehensive pseudocode extracted from the FSL randomise source code, including:
+
+- Complete permutation engine algorithms (sign-flipping vs. full permutation)
+- Exact GLM T-statistic and F-statistic calculations
+- TFCE implementation with optimized connected components
+- Multiple comparison corrections (cluster, TFCE, FDR)
+- Confound handling methods (Kennedy, Freedman-Lane, ter Braak)
+- All utility functions for statistical compatibility
+
+When implementing any statistical function, algorithm, or workflow component, **always reference the corresponding pseudocode section first** to ensure exact compatibility with FSL randomise. The pseudocode provides the exact mathematical formulations, parameter handling, and edge cases that must be preserved for <0.001% deviation from reference implementation.
+
 
 ## Current Development Phase
 
@@ -21,7 +34,7 @@ Track progress in this section. Update after completing each task.
 
 **Current Phase**: Foundation (Weeks 1-4)
 - [ ] Project setup and CI pipeline
-- [ ] Core architecture implementation  
+- [ ] Core architecture implementation
 - [ ] Basic data I/O for NIfTI files
 - [ ] CPU backend with basic GLM
 
@@ -150,13 +163,13 @@ gpu-randomise/
    ```python
    # src/gpu_randomise/backends/base.py
    from abc import ABC, abstractmethod
-   
+
    class Backend(ABC):
        @abstractmethod
        def compute_glm(self, Y, X, contrasts):
            """Compute GLM statistics"""
            pass
-       
+
        @abstractmethod
        def permute_data(self, data, strategy):
            """Apply permutation strategy"""
@@ -167,7 +180,7 @@ gpu-randomise/
    ```python
    # src/gpu_randomise/io/nifti.py
    import nibabel as nib
-   
+
    def load_nifti(filepath):
        """Load NIfTI file and return data + header"""
        # Implementation with proper error handling
@@ -178,7 +191,7 @@ gpu-randomise/
    # src/gpu_randomise/backends/cpu.py
    import numpy as np
    from scipy import stats
-   
+
    class CPUBackend(Backend):
        def compute_glm(self, Y, X, contrasts):
            # Implement GLM using NumPy/SciPy
@@ -190,7 +203,7 @@ gpu-randomise/
    ```python
    # src/gpu_randomise/backends/mps.py
    import torch
-   
+
    class MPSBackend(Backend):
        def __init__(self):
            self.device = torch.device("mps")
@@ -233,10 +246,10 @@ gpu-randomise/
 # tests/validation/test_statistical_accuracy.py
 def test_glm_against_fsl():
     """Compare GLM results with FSL randomise output"""
-    
+
 def test_permutation_distribution():
     """Verify permutation null distribution"""
-    
+
 def test_tfce_implementation():
     """Validate TFCE against reference"""
 ```
@@ -266,7 +279,7 @@ def test_backend_performance(benchmark):
 # One-sample t-test
 randomise -i input.nii -o output -1 -T -c 3.0 -v 10
 
-# With exchangeability blocks  
+# With exchangeability blocks
 randomise -i input.nii -o output -1 -T -c 3.0 -v 10 -e design.grp --permuteBlocks
 
 # Multiple regression
@@ -353,13 +366,13 @@ pytest benchmarks/ --benchmark-only
 
 ### Docstring Example
 ```python
-def compute_tfce(stat_map: np.ndarray, 
+def compute_tfce(stat_map: np.ndarray,
                  dh: float = 0.1,
                  E: float = 0.5,
                  H: float = 2.0) -> np.ndarray:
     """
     Compute Threshold-Free Cluster Enhancement.
-    
+
     Parameters
     ----------
     stat_map : np.ndarray
@@ -370,12 +383,12 @@ def compute_tfce(stat_map: np.ndarray,
         Extent exponent
     H : float, default=2.0
         Height exponent
-        
+
     Returns
     -------
     np.ndarray
         TFCE-enhanced statistical map
-        
+
     References
     ----------
     Smith & Nichols (2009) - Threshold-free cluster enhancement

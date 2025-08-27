@@ -11,20 +11,20 @@ dependencies = [
     # Core scientific computing
     "numpy>=1.24.0",
     "scipy>=1.11.0",
-    
+
     # Neuroimaging I/O
     "nibabel>=5.0.0",
-    
+
     # GPU acceleration
     "torch>=2.0.0",
-    
+
     # Data validation
     "pydantic>=2.0.0",
-    
+
     # CLI
     "typer>=0.9.0",
     "rich>=13.0.0",
-    
+
     # Configuration
     "toml>=0.10.0",
 ]
@@ -37,22 +37,22 @@ dev = [
     "pytest-benchmark>=4.0.0",
     "pytest-mock>=3.0.0",
     "hypothesis>=6.0.0",
-    
+
     # Code Quality
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "isort>=5.0.0",
-    
+
     # Documentation
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=1.0.0",
     "myst-parser>=2.0.0",
-    
+
     # Development Tools
     "pre-commit>=3.0.0",
     "ipython>=8.0.0",
     "jupyter>=1.0.0",
-    
+
     # Profiling
     "py-spy>=0.3.0",
     "memray>=1.0.0",
@@ -72,6 +72,15 @@ packages = ["src/accelperm"]
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+exclude = [
+    ".git",
+    "__pycache__",
+    "docs/conf.py",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -84,15 +93,8 @@ select = [
     "SIM",  # flake8-simplify
 ]
 ignore = ["E501", "B008"]  # line too long, function calls in argument defaults
-exclude = [
-    ".git",
-    "__pycache__",
-    "docs/conf.py",
-    "build",
-    "dist",
-]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["accelperm"]
 
 [tool.mypy]
