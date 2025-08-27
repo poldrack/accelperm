@@ -133,9 +133,7 @@ class OutputWriter:
                 return False
         return True
 
-    def create_analysis_log(
-        self, log_data: dict[str, Any], output_path: Path
-    ) -> None:
+    def create_analysis_log(self, log_data: dict[str, Any], output_path: Path) -> None:
         """Create comprehensive analysis log in JSON format."""
         # Create output directory if needed
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -174,17 +172,13 @@ def save_p_value_map(
     writer.save_p_value_map(p_values, affine, output_path)
 
 
-def generate_cluster_table(
-    clusters: list[dict[str, Any]], output_path: Path
-) -> None:
+def generate_cluster_table(clusters: list[dict[str, Any]], output_path: Path) -> None:
     """Generate cluster summary table in text format."""
     writer = OutputWriter()
     writer.generate_cluster_table(clusters, output_path)
 
 
-def create_results_summary(
-    results: dict[str, Any], output_path: Path
-) -> None:
+def create_results_summary(results: dict[str, Any], output_path: Path) -> None:
     """Create results summary in text format."""
     # Create output directory if needed
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,5 @@
 """Design matrix I/O operations for AccelPerm."""
 
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +45,9 @@ class DesignMatrixLoader:
                 raise ValueError(f"Unsupported file format: {filepath.suffix}")
 
         except FileNotFoundError:
-            raise FileNotFoundError(f"Design matrix file not found: {filepath}") from None
+            raise FileNotFoundError(
+                f"Design matrix file not found: {filepath}"
+            ) from None
         except ValueError:
             raise  # Re-raise ValueError with original message
         except Exception as e:
@@ -61,12 +62,12 @@ class DesignMatrixLoader:
 
         # Handle categorical encoding
         categorical_columns = []
-        
+
         # Identify categorical columns
         for col in data.columns:
             if data[col].dtype == "object" or data[col].dtype.name == "category":
                 categorical_columns.append(col)
-        
+
         # Process categorical columns
         if categorical_columns:
             if self.encode_categorical:
