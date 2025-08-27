@@ -91,12 +91,18 @@
   - [ ] Validate contrast compatibility with design
   - [ ] Support multiple contrasts
   - [ ] Write unit tests
-- [ ] Create output writer module
-  - [x] Implement src/accelperm/io/output.py (file created, needs implementation)
-  - [ ] Support statistical map output
-  - [ ] Support p-value map output
-  - [ ] Generate cluster tables
-  - [ ] Write unit tests
+- [x] Create output writer module (2025-08-27)
+  - [x] Implement src/accelperm/io/output.py with OutputWriter class (2025-08-27)
+  - [x] Support statistical map output to NIfTI format (2025-08-27)
+  - [x] Support p-value map output to NIfTI format (2025-08-27)
+  - [x] Support corrected p-value maps and TFCE maps (2025-08-27)
+  - [x] Generate cluster tables in text format (2025-08-27)
+  - [x] Add batch processing for multiple maps (2025-08-27)
+  - [x] Add data validation (NaN/Inf checking, p-value ranges) (2025-08-27)
+  - [x] Add format compatibility (FSL, SPM styles) (2025-08-27)
+  - [x] Add analysis logging and metadata support (2025-08-27)
+  - [x] Write comprehensive unit tests with 14 tests, 100% pass rate (2025-08-27)
+  - [x] Add utility functions: save_statistical_map, save_p_value_map, generate_cluster_table, create_results_summary (2025-08-27)
 
 ### Week 4: CPU Backend and Basic GLM
 - [ ] Implement CPU backend
@@ -543,13 +549,13 @@
 - NIfTI handling: **COMPLETE** (10/10 subtasks)
 - Design matrix loader: **COMPLETE** (10/10 subtasks)
 - Contrast file loader: **PENDING** (0/4 subtasks) 
-- Output writer module: **PENDING** (0/4 subtasks)
-- **Week 3 Progress: 83%** (20/24 subtasks complete)
+- Output writer module: **COMPLETE** (12/12 subtasks)
+- **Week 3 Progress: 91%** (32/36 subtasks complete)
 
 ### Overall Project
 - **Total tasks: 221**
-- **Completed: 67 (30%)**
-- **Remaining: 154**
+- **Completed: 79 (36%)**
+- **Remaining: 142**
 
 ---
 
