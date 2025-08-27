@@ -6,6 +6,15 @@ You are helping develop a high-performance Python application for GPU-accelerate
 
 **Key Goal**: Build a statistically accurate, GPU-accelerated alternative to FSL randomise that maintains <0.001% deviation from reference implementation while achieving >10x speedup.
 
+## Workflow guidelines
+
+- Always read PLANNING.md at the start of every new conversation
+- Check TASKS.md and SCRATCHPAD.md before starting your work
+- Mark completed tasks immediately within TASKS.md
+- Add newly discovered tasks to TASKS.md
+- use SCRATCHPAD.md as a scratchpad to outline plans
+
+
 ## Current Development Phase
 
 Track progress in this section. Update after completing each task.
