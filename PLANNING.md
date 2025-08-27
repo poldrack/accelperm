@@ -164,7 +164,6 @@ hypothesis = ">=6.0.0"      # Property-based testing
 # Code Quality
 ruff = ">=0.1.0"            # Linting and formatting
 mypy = ">=1.0.0"            # Static type checking
-black = ">=23.0.0"          # Code formatting
 isort = ">=5.0.0"           # Import sorting
 
 # Documentation
@@ -257,7 +256,7 @@ pre-commit run --all-files
 {
     "python.linting.enabled": true,
     "python.linting.ruffEnabled": true,
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "ruff",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.analysis.typeCheckingMode": "strict",
@@ -396,7 +395,7 @@ python scripts/generate_test_data.py \
 #### FSL Comparison
 ```bash
 # Run FSL randomise for comparison
-randomise -i input.nii -o fsl_output -1 -T
+randomise -i input.nii -o fsl_output -1 -T -c 3.0 -v 10
 
 # Compare outputs
 python scripts/compare_outputs.py \
@@ -501,7 +500,7 @@ git push origin feature/implement-tfce
 
 ### Code Quality Gates
 1. **Pre-commit Checks**
-   - Formatting (black, isort)
+   - Formatting (ruff, isort)
    - Linting (ruff)
    - Type checking (mypy)
 
