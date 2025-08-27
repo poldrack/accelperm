@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from accelperm.backends.cpu import CPUBackend
+from accelperm.backends.factory import BackendFactory
 from accelperm.io.contrast import ContrastLoader
 from accelperm.io.design import DesignMatrixLoader
 from accelperm.io.nifti import NiftiLoader
@@ -92,10 +92,10 @@ def glm(
         resolve_path=True,
     ),
     backend: str = typer.Option(
-        "cpu",
+        "auto",
         "--backend",
         "-b",
-        help="Backend to use (cpu, mps, cuda)",
+        help="Backend to use (auto, cpu, mps)",
         case_sensitive=False,
     ),
     verbose: bool = typer.Option(
@@ -111,8 +111,11 @@ def glm(
     This command performs GLM analysis on neuroimaging data with the specified
     design matrix and contrasts, similar to FSL's randomise command.
     """
+    # Initialize backend factory
+    factory = BackendFactory()
+    
     # Validate backend
-    valid_backends = ["cpu", "mps", "cuda"]
+    valid_backends = ["auto", "cpu", "mps"]
     if backend.lower() not in valid_backends:
         console.print(
             f"[red]Error: Invalid backend '{backend}'. Valid options: {', '.join(valid_backends)}[/red]"
@@ -245,22 +248,25 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
                 f"contrasts have {contrasts.shape[1]} regressors"
             )
 
-        # Initialize backend
-        if config["verbose"]:
-            console.print(f"Initializing {config['backend'].upper()} backend...")
-
-        if config["backend"] == "cpu":
-            backend = CPUBackend()
-        elif config["backend"] == "mps":
-            from accelperm.backends.mps import MPSBackend
-
-            backend = MPSBackend()
+        # Initialize backend using factory
+        factory = BackendFactory()
+        
+        if config["backend"] == "auto":
+            if config["verbose"]:
+                console.print("Auto-selecting optimal backend...")
+                available = factory.list_available_backends()
+                console.print(f"Available backends: {', '.join(available)}")
+            backend = factory.get_best_backend()
         else:
-            # Only CPU and MPS backends are implemented
-            raise ValueError(f"Backend '{config['backend']}' not yet implemented")
+            if config["verbose"]:
+                console.print(f"Initializing {config['backend'].upper()} backend...")
+            backend = factory.get_backend(config["backend"])
 
-        if not backend.is_available():
-            raise RuntimeError(f"Backend '{config['backend']}' is not available")
+        if config["verbose"]:
+            console.print(f"Using {backend.name.upper()} backend")
+            caps = factory.get_backend_capabilities(backend.name)
+            if "max_memory_gb" in caps:
+                console.print(f"Available memory: {caps['max_memory_gb']:.1f} GB")
 
         # Run GLM
         if config["verbose"]:
