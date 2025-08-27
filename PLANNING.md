@@ -62,7 +62,7 @@ Build a statistically accurate, GPU-accelerated alternative to FSL randomise tha
   - `statistics.py`: GLM implementation and test statistics
   - `permutation.py`: Permutation strategy implementations
   - `corrections.py`: Multiple comparison correction methods
-- **Design Patterns**: 
+- **Design Patterns**:
   - Strategy pattern for permutation methods
   - Template method for statistical tests
 
@@ -342,7 +342,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12"]
-    
+
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python

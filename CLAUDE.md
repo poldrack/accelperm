@@ -40,11 +40,61 @@ Track progress in this section. Update after completing each task.
 
 ## Critical Development Principles
 
+### 0. Package Management
+**IMPORTANT**: This project uses `uv` for all Python operations. ALWAYS use `uv run` to execute commands:
+```bash
+# Run tests
+uv run pytest
+
+# Run linting
+uv run ruff check
+
+# Run type checking
+uv run mypy
+
+# Install dependencies
+uv sync
+
+# Any Python script execution
+uv run python script.py
+```
+
+## Critical Development Principles
+
 ### 1. Test-Driven Development (TDD)
+**CRITICAL**: This project STRICTLY follows TDD. NO exceptions.
+
 **ALWAYS follow this cycle:**
 1. **RED**: Write failing tests FIRST
+   - Write tests before ANY implementation code
+   - Tests MUST fail initially (red state)
+   - If tests pass immediately, you violated TDD
 2. **GREEN**: Write minimal code to pass tests
+   - Implement ONLY enough to make tests pass
+   - Resist the urge to over-engineer
+   - Focus on making tests green, not perfect code
 3. **REFACTOR**: Optimize and clean up
+   - Improve code quality while keeping tests green
+   - Apply design patterns and optimizations
+   - Maintain test coverage throughout
+
+**TDD Violations Are Not Acceptable:**
+- Writing implementation before tests
+- Writing tests that pass immediately
+- Skipping the red phase
+- Over-implementing in the green phase
+
+**Why TDD is Critical for This Project:**
+- Ensures statistical accuracy through comprehensive testing
+- Provides confidence when optimizing performance-critical code
+- Catches regressions early in GPU acceleration work
+- Documents expected behavior for complex algorithms
+- Enables safe refactoring of mathematical computations
+
+**TDD Enforcement:**
+- Every new feature starts with a failing test
+- Code reviews must verify TDD was followed
+- No merges without proper test-first development
 
 ### 2. Code Quality Standards
 - Python 3.12+ with comprehensive type hints
@@ -349,17 +399,18 @@ class InsufficientGPUMemoryError(Exception):
 
 ### Running Tests
 ```bash
+# IMPORTANT: Always use uv to execute commands in this project
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=gpu_randomise --cov-report=html
+uv run pytest --cov=accelperm --cov-report=html
 
 # Run only unit tests
-pytest tests/unit/
+uv run pytest tests/unit/
 
 # Run benchmarks
-pytest benchmarks/ --benchmark-only
+uv run pytest benchmarks/ --benchmark-only
 ```
 
 ## Documentation Standards

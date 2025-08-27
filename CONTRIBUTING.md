@@ -21,7 +21,7 @@ We welcome contributions to AccelPerm! This document provides guidelines for con
    source .venv/bin/activate  # On Unix
    # or
    .venv\Scripts\activate     # On Windows
-   
+
    uv pip install -e ".[dev]"
    ```
 

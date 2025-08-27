@@ -29,7 +29,7 @@ Additional features may be added in the future.
   - Support for design matrices and contrast matrices
   - Handle multiple contrasts simultaneously
   - Support for F-tests and t-tests
-  
+
 - **Permutation Strategies**
   - Sign-flipping for paired/repeated measures designs
   - Full permutation enumeration (for small sample sizes)
@@ -294,7 +294,7 @@ Additional features may be added in the future.
 #### 8.1 Technical Risks
 - **Risk**: GPU memory limitations for large datasets
   - **Mitigation**: Implement chunking and out-of-core processing
-  
+
 - **Risk**: Numerical precision differences between GPU and CPU
   - **Mitigation**: Extensive validation testing, mixed precision options
 
@@ -336,6 +336,6 @@ Additional features may be added in the future.
 
 #### C. Example Use Cases (with relevant randomise calls)
 
-1. One-sample t-test on fMRI data: randomise -i <input> -o <output> -1 -T -c 3.0 -v 10 
+1. One-sample t-test on fMRI data: randomise -i <input> -o <output> -1 -T -c 3.0 -v 10
 2. One-sample t-test on fMRI data with exchangeability blocks: randomise -i <input> -o <output> -1 -T -c 3.0 -v 10 -e <design.grp> --permuteBlocks
 3. Multiple regression with t contrasts on fMRI data: randomise -i <input> -o <output> -d <design matrix file> -t <t contrasts file> -T -c 3.0 -v 10 -e <design.grp> --permuteBlocks

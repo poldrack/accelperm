@@ -13,41 +13,41 @@
 **Goal**: Establish project infrastructure and core architecture
 
 ### Week 1: Project Setup and Infrastructure
-- [ ] Initialize Git repository with .gitignore for Python
-- [ ] Create project structure as defined in CLAUDE.md
-  - [ ] Create src/gpu_randomise directory structure
-  - [ ] Create tests/ directory structure
-  - [ ] Create benchmarks/ directory
-  - [ ] Create docs/ directory
-  - [ ] Create examples/ directory
-- [ ] Set up pyproject.toml with uv
-  - [ ] Define project metadata
-  - [ ] Add core dependencies
-  - [ ] Add development dependencies
-  - [ ] Configure build system
-- [ ] Configure development tools
-  - [ ] Set up ruff configuration
-  - [ ] Set up mypy configuration
-  - [ ] Set up pytest configuration
-  - [ ] Create .pre-commit-config.yaml
+- [x] Initialize Git repository with .gitignore for Python (completed)
+- [x] Create project structure as defined in CLAUDE.md (completed)
+  - [x] Create src/accelperm directory structure (completed)
+  - [x] Create tests/ directory structure (completed)
+  - [x] Create benchmarks/ directory (completed)
+  - [x] Create docs/ directory (completed)
+  - [x] Create examples/ directory (completed)
+- [x] Set up pyproject.toml with uv (completed)
+  - [x] Define project metadata (completed)
+  - [x] Add core dependencies (completed)
+  - [x] Add development dependencies (completed)
+  - [x] Configure build system (completed)
+- [x] Configure development tools (completed)
+  - [x] Set up ruff configuration (completed)
+  - [x] Set up mypy configuration (completed)
+  - [x] Set up pytest configuration (completed)
+  - [x] Create .pre-commit-config.yaml (completed)
 - [ ] Set up CI/CD pipeline
   - [ ] Create GitHub Actions workflow for tests
   - [ ] Add matrix testing for Python 3.12
   - [ ] Configure coverage reporting
   - [ ] Set up documentation building
-- [ ] Create initial documentation files
-  - [ ] Write README.md with installation instructions
-  - [ ] Create CONTRIBUTING.md
-  - [ ] Create CHANGELOG.md
-  - [ ] Set up Sphinx documentation structure
+- [x] Create initial documentation files (completed)
+  - [x] Write README.md with installation instructions (completed)
+  - [x] Create CONTRIBUTING.md (completed)
+  - [x] Create CHANGELOG.md (completed)
+  - [x] Set up Sphinx documentation structure (completed)
 
 ### Week 2: Core Architecture Implementation
 - [ ] Implement backend abstraction layer
-  - [ ] Create src/gpu_randomise/backends/base.py with ABC
+  - [x] Create src/accelperm/backends/base.py with ABC (file created, needs implementation)
   - [ ] Define Backend abstract class interface
   - [ ] Write unit tests for backend interface
 - [ ] Create core orchestrator module
-  - [ ] Implement src/gpu_randomise/core/orchestrator.py skeleton
+  - [x] Implement src/accelperm/core/orchestrator.py skeleton (file created, needs implementation)
   - [ ] Define workflow coordination interface
   - [ ] Write unit tests for orchestrator
 - [ ] Set up logging framework
@@ -65,14 +65,14 @@
 
 ### Week 3: Data I/O Layer
 - [ ] Implement NIfTI file handling
-  - [ ] Create src/gpu_randomise/io/nifti.py
+  - [x] Create src/accelperm/io/nifti.py (file created, needs implementation)
   - [ ] Implement load_nifti function with nibabel
   - [ ] Implement save_nifti function
   - [ ] Add support for compressed files (.nii.gz)
   - [ ] Write comprehensive unit tests
   - [ ] Add validation for file integrity
 - [ ] Create design matrix loader
-  - [ ] Implement src/gpu_randomise/io/design.py
+  - [x] Implement src/accelperm/io/design.py (file created, needs implementation)
   - [ ] Support CSV format parsing
   - [ ] Support TSV format parsing
   - [ ] Validate design matrix structure
@@ -83,7 +83,7 @@
   - [ ] Support multiple contrasts
   - [ ] Write unit tests
 - [ ] Create output writer module
-  - [ ] Implement src/gpu_randomise/io/output.py
+  - [x] Implement src/accelperm/io/output.py (file created, needs implementation)
   - [ ] Support statistical map output
   - [ ] Support p-value map output
   - [ ] Generate cluster tables
@@ -91,12 +91,12 @@
 
 ### Week 4: CPU Backend and Basic GLM
 - [ ] Implement CPU backend
-  - [ ] Create src/gpu_randomise/backends/cpu.py
+  - [x] Create src/accelperm/backends/cpu.py (file created, needs implementation)
   - [ ] Implement CPUBackend class inheriting from Backend
   - [ ] Use NumPy for array operations
   - [ ] Write unit tests for CPU backend
 - [ ] Implement basic GLM in statistics module
-  - [ ] Create src/gpu_randomise/core/statistics.py
+  - [x] Create src/accelperm/core/statistics.py (file created, needs implementation)
   - [ ] Implement ordinary least squares (OLS) solver
   - [ ] Calculate beta coefficients
   - [ ] Compute residuals and variance
@@ -107,7 +107,7 @@
   - [ ] Validate against synthetic data
   - [ ] Write unit tests
 - [ ] Create initial CLI interface
-  - [ ] Implement src/gpu_randomise/cli.py with Typer
+  - [x] Implement src/accelperm/cli.py with Typer (file created, needs implementation)
   - [ ] Add basic command-line arguments
   - [ ] Support input/output file specification
   - [ ] Add help documentation
@@ -497,10 +497,10 @@
 
 ### Phase 1: Foundation
 - Total tasks: 52
-- Completed: 0
+- Completed: 24
 - In Progress: 0
 - Blocked: 0
-- **Progress: 0%**
+- **Progress: 46%**
 
 ### Phase 2: GPU Acceleration
 - Total tasks: 36
@@ -532,8 +532,8 @@
 
 ### Overall Project
 - **Total tasks: 216**
-- **Completed: 0 (0%)**
-- **Remaining: 216**
+- **Completed: 24 (11%)**
+- **Remaining: 192**
 
 ---
 
