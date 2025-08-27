@@ -42,13 +42,13 @@ class ContrastLoader:
             elif filepath.suffix.lower() in [".txt", ".mat"]:
                 # Tab or space-separated format
                 # Handle inconsistent row lengths manually
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     lines = f.readlines()
-                
+
                 # Parse lines manually to handle inconsistent lengths
                 rows = []
                 max_cols = 0
-                
+
                 for line in lines:
                     line = line.strip()
                     if line:  # Skip empty lines
@@ -56,14 +56,20 @@ class ContrastLoader:
                             values = line.split("\t")
                         else:
                             values = line.split()
-                        
+
                         # Check for inconsistent number of columns
-                        if self.validate_contrasts and max_cols > 0 and len(values) != max_cols:
-                            raise ValueError("Inconsistent number of regressors in contrast file")
-                        
+                        if (
+                            self.validate_contrasts
+                            and max_cols > 0
+                            and len(values) != max_cols
+                        ):
+                            raise ValueError(
+                                "Inconsistent number of regressors in contrast file"
+                            )
+
                         max_cols = max(max_cols, len(values))
                         rows.append([float(v) for v in values])
-                
+
                 # Convert to DataFrame
                 data = pd.DataFrame(rows)
             else:
@@ -86,7 +92,9 @@ class ContrastLoader:
             if self.format_style == "fsl":
                 contrast_names = [f"C{i+1}" for i in range(contrast_matrix.shape[0])]
             else:
-                contrast_names = [f"contrast_{i+1}" for i in range(contrast_matrix.shape[0])]
+                contrast_names = [
+                    f"contrast_{i+1}" for i in range(contrast_matrix.shape[0])
+                ]
 
         # Validate contrasts
         if self.validate_contrasts:
@@ -101,7 +109,9 @@ class ContrastLoader:
         # Check design compatibility if provided
         design_compatible = True
         if design_info is not None:
-            design_compatible, _ = validate_contrast_compatibility(contrast_matrix, design_info)
+            design_compatible, _ = validate_contrast_compatibility(
+                contrast_matrix, design_info
+            )
 
         # Prepare result
         result = {
@@ -148,38 +158,36 @@ class ContrastLoader:
             if col_name.lower() != "intercept":
                 contrast = np.zeros(len(column_names))
                 contrast[i] = 1
-                contrasts["main_effects"].append({
-                    "name": f"{col_name}_effect",
-                    "contrast": contrast
-                })
+                contrasts["main_effects"].append(
+                    {"name": f"{col_name}_effect", "contrast": contrast}
+                )
 
         # Create interaction contrasts (for columns containing 'x' or '_x_')
         for i, col_name in enumerate(column_names):
             if "x" in col_name.lower() or "_x_" in col_name.lower():
                 contrast = np.zeros(len(column_names))
                 contrast[i] = 1
-                contrasts["interactions"].append({
-                    "name": f"{col_name}_interaction",
-                    "contrast": contrast
-                })
+                contrasts["interactions"].append(
+                    {"name": f"{col_name}_interaction", "contrast": contrast}
+                )
 
         return contrasts
 
     def create_polynomial_contrasts(self, n_levels: int) -> dict[str, np.ndarray]:
         """Create polynomial contrasts for ordered factors."""
         contrasts = {}
-        
+
         if n_levels >= 2:
             # Linear contrast
             linear = np.linspace(-1, 1, n_levels)
             contrasts["linear"] = linear
-            
+
         if n_levels >= 3:
             # Quadratic contrast
             x = np.linspace(-1, 1, n_levels)
             quadratic = x**2 - np.mean(x**2)
             contrasts["quadratic"] = quadratic
-            
+
         if n_levels >= 4:
             # Cubic contrast
             cubic = x**3 - np.mean(x**3)
@@ -226,13 +234,17 @@ def validate_contrast_compatibility(
         # For orthogonal designs, contrasts should sum to zero for proper interpretation
         for i, contrast_row in enumerate(contrast_matrix):
             if not np.isclose(np.sum(contrast_row), 0, atol=1e-10):
-                issues.append(f"Contrast {i+1} does not sum to zero (may not be interpretable)")
+                issues.append(
+                    f"Contrast {i+1} does not sum to zero (may not be interpretable)"
+                )
 
     is_compatible = len(issues) == 0
     return is_compatible, issues
 
 
-def create_t_contrast(column_names: list[str], contrast_spec: dict[str, float]) -> np.ndarray:
+def create_t_contrast(
+    column_names: list[str], contrast_spec: dict[str, float]
+) -> np.ndarray:
     """Create t-contrast vector from column names and specification."""
     n_regressors = len(column_names)
     contrast = np.zeros(n_regressors)

@@ -86,11 +86,16 @@
   - [x] Add utility functions: load_design_matrix, validate_design_matrix, create_contrast_matrix (2025-08-27)
   - [x] Add FSL and SPM format compatibility (2025-08-27)
   - [x] Implement Gram-Schmidt orthogonalization for correlated regressors (2025-08-27)
-- [ ] Implement contrast file loader
-  - [ ] Parse contrast matrices from text files
-  - [ ] Validate contrast compatibility with design
-  - [ ] Support multiple contrasts
-  - [ ] Write unit tests
+- [x] Implement contrast file loader (2025-08-27)
+  - [x] Implement src/accelperm/io/contrast.py with ContrastLoader class (2025-08-27)
+  - [x] Parse contrast matrices from text files (FSL .con, CSV, TXT formats) (2025-08-27)
+  - [x] Validate contrast compatibility with design matrices (2025-08-27)
+  - [x] Support multiple contrast files and batch loading (2025-08-27)
+  - [x] Add contrast validation (rank deficiency, zero contrasts, data integrity) (2025-08-27)
+  - [x] Add format compatibility (FSL, SPM styles) (2025-08-27)
+  - [x] Add programmatic contrast creation (t-contrasts, F-contrasts, polynomial) (2025-08-27)
+  - [x] Write comprehensive unit tests with 21 tests, 100% pass rate (2025-08-27)
+  - [x] Add utility functions: load_contrast_matrix, validate_contrast_compatibility, create_t_contrast, create_f_contrast (2025-08-27)
 - [x] Create output writer module (2025-08-27)
   - [x] Implement src/accelperm/io/output.py with OutputWriter class (2025-08-27)
   - [x] Support statistical map output to NIfTI format (2025-08-27)
@@ -545,12 +550,12 @@
 - Blocked: 0
 - **Progress: 0%**
 
-### Week 3 Progress (Data I/O Layer)
+### Week 3 Progress (Data I/O Layer) - **COMPLETE!** 🎉
 - NIfTI handling: **COMPLETE** (10/10 subtasks)
 - Design matrix loader: **COMPLETE** (10/10 subtasks)
-- Contrast file loader: **PENDING** (0/4 subtasks) 
+- Contrast file loader: **COMPLETE** (10/10 subtasks) 
 - Output writer module: **COMPLETE** (12/12 subtasks)
-- **Week 3 Progress: 91%** (32/36 subtasks complete)
+- **Week 3 Progress: 100%** (42/42 subtasks complete)
 
 ### Overall Project
 - **Total tasks: 221**
