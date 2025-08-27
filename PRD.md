@@ -19,6 +19,9 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 ### 2. Functional Requirements
 
+The requirements for this package represent a subset of the full capability of the FSL randomise tool.
+Additional features may be added in the future.
+
 #### 2.1 Core Statistical Functions
 
 ##### 2.1.1 Permutation Testing Engine
@@ -32,7 +35,9 @@ Development of a high-performance Python application for GPU-accelerated permuta
   - Full permutation enumeration (for small sample sizes)
   - Monte Carlo permutation sampling (for large sample sizes)
   - Block permutation for exchangeability blocks
-  - Support for custom permutation schemes
+
+- **Variance smoothing**
+  - Variance smoothing for t-stats
 
 ##### 2.1.2 Statistical Corrections
 - **Multiple Comparison Corrections**
@@ -40,51 +45,43 @@ Development of a high-performance Python application for GPU-accelerated permuta
   - Threshold-free cluster enhancement (TFCE)
   - Cluster-based thresholding
   - Voxel-wise correction
-  - False discovery rate (FDR) options
 
 ##### 2.1.3 Test Statistics
 - T-statistic computation
 - F-statistic computation
-- Pseudo-t statistic for heteroscedastic data
-- Support for custom test statistics via plugin architecture
 
 #### 2.2 Data Input/Output
 
 ##### 2.2.1 Supported Input Formats
-- **Neuroimaging Formats**
+- **Neuroimaging Image Formats**
   - NIfTI (.nii, .nii.gz)
-  - CIFTI-2 (.dscalar.nii, .dtseries.nii)
-  - FSL format files (.nii.gz with .bvec/.bval for DTI)
-  - Surface data (GIFTI format)
 
 - **Design Files**
-  - FSL format design matrices (.mat)
-  - FSL format contrast files (.con)
   - Text-based design matrices (CSV, TSV)
-  - NumPy array format (.npy, .npz)
+  - Text-based contrast files (CSV, TSV)
 
 ##### 2.2.2 Output Capabilities
-- Corrected and uncorrected p-value maps
+- Output maps should use same format as input maps
 - T/F-statistic maps
-- TFCE output maps
-- Cluster maps and tables
-- Null distribution histograms
-- Maximum statistic distributions
-- Report generation (HTML, PDF)
+- Uncorrected p-value maps
+- Voxel-based familywise error (FWE) corrected maps
+- Cluster-based FWE corrected maps
+- Cluster tables
+- TFCE-corrected maps
+
 
 #### 2.3 GPU Acceleration Features
 
-##### 2.3.1 CUDA Support
-- CUDA compute capability 6.0+ support
-- Multi-GPU support for large-scale analyses
-- Dynamic kernel optimization based on data dimensions
-- Efficient memory management with unified memory where applicable
-- CUDA streams for overlapping computation and data transfer
-
-##### 2.3.2 Apple Metal Performance Shaders (MPS) Support
+##### 2.3.1 Apple Metal Performance Shaders (MPS) Support
 - MPS backend for M1/M2/M3 Mac systems
 - Automatic fallback to CPU for unsupported operations
 - Memory optimization for Apple's unified memory architecture
+
+##### 2.3.2 CUDA Support (to be added after MPS)
+- CUDA compute capability 6.0+ support
+- Dynamic kernel optimization based on data dimensions
+- Efficient memory management with unified memory where applicable
+- CUDA streams for overlapping computation and data transfer
 
 ##### 2.3.3 Automatic Backend Selection
 - Runtime detection of available GPU resources
@@ -99,7 +96,6 @@ Development of a high-performance Python application for GPU-accelerated permuta
 #### 3.1 Performance Requirements
 - **Throughput**: Process 100,000+ voxels with 10,000 permutations in under 1 minute on modern GPU
 - **Memory Efficiency**: Handle datasets up to available GPU memory (typically 8-48GB)
-- **Scalability**: Linear scaling with number of GPUs for multi-GPU systems
 - **Latency**: Interactive response (<100ms) for parameter adjustment in GUI mode
 
 #### 3.2 Code Quality & Architecture
@@ -107,7 +103,6 @@ Development of a high-performance Python application for GPU-accelerated permuta
 ##### 3.2.1 Architecture Principles
 - **Modular Design**
   - Clear separation of concerns (statistics, I/O, GPU kernels)
-  - Plugin architecture for custom statistics and corrections
   - Dependency injection for testability
 
 - **Design Patterns**
@@ -120,8 +115,7 @@ Development of a high-performance Python application for GPU-accelerated permuta
 - PEP 8 compliance for Python code
 - Type hints for all public APIs
 - Comprehensive docstrings (NumPy style)
-- Maximum cyclomatic complexity of 10
-- Maximum function length of 50 lines
+- Preferred maximum function length of 50 lines
 
 #### 3.3 Testing Requirements
 
@@ -133,7 +127,6 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 ##### 3.3.2 Test Framework
 - pytest for test orchestration
-- hypothesis for property-based testing
 - pytest-benchmark for performance regression testing
 - pytest-cov for coverage reporting
 - Mock GPU backends for CI/CD testing
@@ -175,7 +168,7 @@ Development of a high-performance Python application for GPU-accelerated permuta
 ├─────────────────────────────────────────────────┤
 │              Backend Abstraction Layer          │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │   CUDA   │ │    MPS    │ │    CPU   │      │
+│  │   MPS    │ │    CUDA  │ │    CPU   │      │
 │  │  Backend │ │  Backend  │ │  Backend │      │
 │  └──────────┘ └──────────┘ └──────────┘      │
 ├─────────────────────────────────────────────────┤
@@ -197,8 +190,8 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 ##### 4.2.2 Backend Abstraction
 - **Backend Interface**: Abstract base class for compute backends
-- **CUDA Backend**: CuPy/PyTorch-based CUDA implementation
 - **MPS Backend**: PyTorch MPS or Metal-cpp implementation
+- **CUDA Backend**: CuPy/PyTorch-based CUDA implementation
 - **CPU Backend**: NumPy/Numba fallback implementation
 
 ##### 4.2.3 Data Management
@@ -209,26 +202,18 @@ Development of a high-performance Python application for GPU-accelerated permuta
 #### 4.3 Technology Stack
 
 ##### 4.3.1 Core Dependencies
-- **Python**: 3.9+ (for modern type hints and features)
+- **Python**: 3.12+ (for modern type hints and features)
 - **NumPy**: Array operations and CPU backend
 - **SciPy**: Statistical functions and distributions
 - **Nibabel**: Neuroimaging data I/O
 - **PyTorch**: GPU acceleration framework (CUDA and MPS)
-- **CuPy** (optional): Alternative CUDA backend
 
 ##### 4.3.2 Development Dependencies
+- **uv**: Package management
 - **pytest**: Testing framework
-- **black**: Code formatting
+- **ruff**: Code formatting and linting
 - **mypy**: Static type checking
-- **ruff**: Fast Python linter
 - **sphinx**: Documentation generation
-- **pre-commit**: Git hooks for code quality
-
-##### 4.3.3 Optional Dependencies
-- **Dask**: Distributed computing support
-- **Ray**: Alternative distributed computing
-- **Matplotlib/Plotly**: Visualization
-- **Streamlit/Gradio**: Web-based GUI
 
 ### 5. Development Methodology
 
@@ -239,12 +224,13 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 #### 5.2 Development Workflow
 1. **Feature Planning**: Create detailed specifications with test cases
-2. **Test Implementation**: Write comprehensive test suite
-3. **Implementation**: Develop feature following TDD
-4. **Code Review**: Peer review with focus on performance and correctness
-5. **Integration Testing**: Validate with real fMRI datasets
-6. **Performance Profiling**: Optimize bottlenecks
-7. **Documentation**: Update user and API documentation
+2. **Research**: Examine existing FSL code and generate pseudocode for relevant functions
+3. **Test Implementation**: Write comprehensive test suite
+4. **Implementation**: Develop feature following TDD
+5. **Code Review**: Peer review with focus on performance and correctness
+6. **Integration Testing**: Validate with real fMRI datasets
+7. **Performance Profiling**: Optimize bottlenecks
+8. **Documentation**: Update user and API documentation
 
 #### 5.3 Continuous Integration/Deployment
 - **CI Pipeline**
@@ -253,25 +239,17 @@ Development of a high-performance Python application for GPU-accelerated permuta
   - Performance regression testing
   - Documentation building
 
-- **CD Pipeline**
-  - Automated package building
-  - PyPI deployment for releases
-  - Docker image creation
-  - Conda package building
-
 ### 6. Validation & Benchmarking
 
 #### 6.1 Statistical Validation
 - Compare outputs with FSL randomise on standard datasets
-- Validate against published results from neuroimaging studies
 - Synthetic data testing with known ground truth
 - Edge case testing (small samples, extreme values)
 
 #### 6.2 Performance Benchmarking
 - **Benchmark Datasets**
   - Small: 1000 voxels, 20 subjects, 1000 permutations
-  - Medium: 100,000 voxels, 100 subjects, 5000 permutations
-  - Large: 1,000,000 voxels, 500 subjects, 10000 permutations
+  - Large: 250,000 voxels, 100 subjects, 10000 permutations
 
 - **Metrics**
   - Wall-clock time
@@ -283,14 +261,14 @@ Development of a high-performance Python application for GPU-accelerated permuta
 ### 7. Project Timeline & Milestones
 
 #### Phase 1: Foundation (Weeks 1-4)
-- [ ] Project setup and CI/CD pipeline
+- [ ] Project setup and CI pipeline
 - [ ] Core architecture implementation
-- [ recursion ] Basic data I/O for NIfTI files
+- [ ] Basic data I/O for NIfTI files
 - [ ] CPU backend with basic GLM
 
 #### Phase 2: GPU Acceleration (Weeks 5-8)
-- [ ] CUDA backend implementation
 - [ ] MPS backend implementation
+- [ ] CUDA backend implementation
 - [ ] Backend abstraction layer
 - [ ] GPU memory management
 
@@ -302,7 +280,6 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 #### Phase 4: Optimization & Polish (Weeks 13-16)
 - [ ] Performance optimization
-- [ ] Multi-GPU support
 - [ ] Comprehensive documentation
 - [ ] Example notebooks and tutorials
 
@@ -326,7 +303,7 @@ Development of a high-performance Python application for GPU-accelerated permuta
 
 #### 8.2 Project Risks
 - **Risk**: Scope creep from additional statistical methods
-  - **Mitigation**: Clear phase boundaries, plugin architecture for extensions
+  - **Mitigation**: Clear phase boundaries
 
 - **Risk**: Performance targets not met
   - **Mitigation**: Early profiling, alternative algorithmic approaches
@@ -337,13 +314,9 @@ Development of a high-performance Python application for GPU-accelerated permuta
 - Performance improvement: >10x speedup vs FSL randomise
 - Test coverage: >90% for unit tests
 - Statistical accuracy: <0.001% deviation from reference
-- Memory efficiency: <2x memory overhead vs theoretical minimum
-- User adoption: 100+ users within 6 months
 
 #### 9.2 Qualitative Metrics
-- Code maintainability score: A rating (via CodeClimate or similar)
 - Documentation completeness and clarity
-- Community engagement and contributions
 - Ease of migration from FSL randomise
 
 ### 10. Appendices
@@ -353,18 +326,16 @@ Development of a high-performance Python application for GPU-accelerated permuta
 - **GLM**: General Linear Model
 - **TFCE**: Threshold-Free Cluster Enhancement
 - **FWER**: Family-Wise Error Rate
-- **FDR**: False Discovery Rate
 - **MPS**: Metal Performance Shaders
 
 #### B. Reference Materials
-- FSL Randomise Documentation
+- FSL Randomise Documentation: https://fsl.fmrib.ox.ac.uk/fsl/docs/#/statistics/randomise
 - Winkler et al. (2014) - Permutation inference for the GLM
 - Smith & Nichols (2009) - Threshold-free cluster enhancement
 - Freedman & Lane (1983) - Permutation tests for linear models
 
-#### C. Example Use Cases
-1. Whole-brain voxel-wise analysis of task fMRI data
-2. Surface-based analysis of cortical thickness
-3. Connectome-wide association studies
-4. DTI-based tract analysis
-5. Longitudinal neuroimaging studies
+#### C. Example Use Cases (with relevant randomise calls)
+
+1. One-sample t-test on fMRI data: randomise -i <input> -o <output> -1 -T -c 3.0 -v 10 
+2. One-sample t-test on fMRI data with exchangeability blocks: randomise -i <input> -o <output> -1 -T -c 3.0 -v 10 -e <design.grp> --permuteBlocks
+3. Multiple regression with t contrasts on fMRI data: randomise -i <input> -o <output> -d <design matrix file> -t <t contrasts file> -T -c 3.0 -v 10 -e <design.grp> --permuteBlocks
