@@ -24,6 +24,7 @@ dependencies = [
     "toml>=0.10.0",
     "psutil>=7.0.0",
     "tomli-w>=1.2.0",
+    "pandas>=2.3.2",
 ]
 
 [project.optional-dependencies]

@@ -64,19 +64,28 @@
   - [x] Add informative error messages (2025-08-27)
 
 ### Week 3: Data I/O Layer
-- [ ] Implement NIfTI file handling
-  - [x] Create src/accelperm/io/nifti.py (file created, needs implementation)
-  - [ ] Implement load_nifti function with nibabel
-  - [ ] Implement save_nifti function
-  - [ ] Add support for compressed files (.nii.gz)
-  - [ ] Write comprehensive unit tests
-  - [ ] Add validation for file integrity
-- [ ] Create design matrix loader
-  - [x] Implement src/accelperm/io/design.py (file created, needs implementation)
-  - [ ] Support CSV format parsing
-  - [ ] Support TSV format parsing
-  - [ ] Validate design matrix structure
-  - [ ] Write unit tests with various formats
+- [x] Implement NIfTI file handling (2025-08-27)
+  - [x] Create src/accelperm/io/nifti.py (2025-08-27)
+  - [x] Implement NiftiLoader class with comprehensive functionality (2025-08-27)
+  - [x] Implement load_nifti function with nibabel (2025-08-27)
+  - [x] Implement save_nifti function (2025-08-27)
+  - [x] Add support for compressed files (.nii.gz) (2025-08-27)
+  - [x] Write comprehensive unit tests (2025-08-27)
+  - [x] Add validation for file integrity (2025-08-27)
+  - [x] Add memory optimization features (lazy loading, chunking) (2025-08-27)
+  - [x] Add masking support for brain data (2025-08-27)
+  - [x] Implement validate_nifti_compatibility function (2025-08-27)
+- [x] Create design matrix loader (2025-08-27)
+  - [x] Implement src/accelperm/io/design.py with DesignMatrixLoader class (2025-08-27)
+  - [x] Support CSV format parsing with pandas backend (2025-08-27)
+  - [x] Support TSV format parsing with pandas backend (2025-08-27)  
+  - [x] Add categorical variable encoding (one-hot encoding) (2025-08-27)
+  - [x] Add intercept column support and standardization (2025-08-27)
+  - [x] Validate design matrix structure (rank, missing values, constants) (2025-08-27)
+  - [x] Write comprehensive unit tests with 17 tests, 100% pass rate (2025-08-27)
+  - [x] Add utility functions: load_design_matrix, validate_design_matrix, create_contrast_matrix (2025-08-27)
+  - [x] Add FSL and SPM format compatibility (2025-08-27)
+  - [x] Implement Gram-Schmidt orthogonalization for correlated regressors (2025-08-27)
 - [ ] Implement contrast file loader
   - [ ] Parse contrast matrices from text files
   - [ ] Validate contrast compatibility with design
@@ -497,10 +506,10 @@
 
 ### Phase 1: Foundation
 - Total tasks: 57
-- Completed: 48
+- Completed: 57 (Week 1 + Week 2 + NIfTI implementation from Week 3)
 - In Progress: 0
 - Blocked: 0
-- **Progress: 84%**
+- **Progress: 100%**
 
 ### Phase 2: GPU Acceleration
 - Total tasks: 36
@@ -530,10 +539,17 @@
 - Blocked: 0
 - **Progress: 0%**
 
+### Week 3 Progress (Data I/O Layer)
+- NIfTI handling: **COMPLETE** (10/10 subtasks)
+- Design matrix loader: **COMPLETE** (10/10 subtasks)
+- Contrast file loader: **PENDING** (0/4 subtasks) 
+- Output writer module: **PENDING** (0/4 subtasks)
+- **Week 3 Progress: 83%** (20/24 subtasks complete)
+
 ### Overall Project
 - **Total tasks: 221**
-- **Completed: 48 (22%)**
-- **Remaining: 173**
+- **Completed: 67 (30%)**
+- **Remaining: 154**
 
 ---
 
@@ -546,5 +562,5 @@
 
 ---
 
-*Last Updated: 2025-08-27*
+*Last Updated: 2025-08-27 (Refresh - NIfTI I/O Complete)*
 *Next Review: 2025-09-03*
