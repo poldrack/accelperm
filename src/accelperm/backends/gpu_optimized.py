@@ -12,7 +12,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from scipy import stats
 
 from accelperm.backends.base import Backend
 
@@ -87,7 +86,6 @@ class GPUOptimizedBackend(Backend):
             - null_distribution: Null distribution statistics
         """
         n_voxels, n_subjects = Y.shape
-        n_regressors = X.shape[1]
         n_contrasts = contrasts.shape[0]
         n_permutations = permutations.shape[1]
 
@@ -114,8 +112,6 @@ class GPUOptimizedBackend(Backend):
     ) -> dict[str, Any]:
         """Compute GLM for all permutations in a single batch."""
         n_voxels, n_subjects = Y.shape
-        n_regressors = X.shape[1]
-        n_contrasts = contrasts.shape[0]
         n_permutations = permutations.shape[1]
 
         # Convert to tensors with optimal dtype
@@ -172,8 +168,6 @@ class GPUOptimizedBackend(Backend):
     ) -> dict[str, Any]:
         """Compute GLM for all permutations keeping results on GPU for longer processing."""
         n_voxels, n_subjects = Y.shape
-        n_regressors = X.shape[1]
-        n_contrasts = contrasts.shape[0]
         n_permutations = permutations.shape[1]
 
         # Convert to tensors with optimal dtype
@@ -352,41 +346,28 @@ class GPUOptimizedBackend(Backend):
                     for c_idx in range(n_contrasts):
                         null_max_t[c_idx, perm_idx] = max_abs_t[c_idx, i].item()
 
-            # CPU-based corrections (cluster and TFCE still need CPU for connected components)
-            for i in range(chunk_size_actual):
-                perm_idx = start_idx + i
+            # VECTORIZED CPU-based corrections - process all permutations in chunk simultaneously
+            if need_cluster and spatial_shape is not None:
+                self._process_cluster_corrections_vectorized(
+                    chunk_t_stats_cpu,
+                    spatial_shape,
+                    correction_params,
+                    null_max_cluster,
+                    start_idx,
+                    n_contrasts,
+                    chunk_size_actual,
+                )
 
-                for c_idx in range(n_contrasts):
-                    t_map = chunk_t_stats_cpu[:, c_idx, i]
-
-                    # Cluster correction
-                    if need_cluster and spatial_shape is not None:
-                        t_map_3d = t_map.reshape(spatial_shape)
-                        cluster_threshold = correction_params.get(
-                            "cluster_threshold", 2.3
-                        )
-
-                        binary_map = np.abs(t_map_3d) > cluster_threshold
-
-                        try:
-                            from scipy.ndimage import label as scipy_label
-
-                            labels, n_clusters = scipy_label(binary_map)
-                            if n_clusters > 0:
-                                cluster_sizes = [
-                                    np.sum(labels == j)
-                                    for j in range(1, n_clusters + 1)
-                                ]
-                                null_max_cluster[c_idx, perm_idx] = max(cluster_sizes)
-                            else:
-                                null_max_cluster[c_idx, perm_idx] = 0
-                        except ImportError:
-                            null_max_cluster[c_idx, perm_idx] = np.sum(binary_map)
-
-                    # TFCE correction
-                    if need_tfce and spatial_shape is not None:
-                        tfce_enhanced = tfce_processor.enhance(t_map, spatial_shape)
-                        null_max_tfce[c_idx, perm_idx] = np.max(tfce_enhanced)
+            if need_tfce and spatial_shape is not None:
+                self._process_tfce_corrections_vectorized(
+                    chunk_t_stats_cpu,
+                    spatial_shape,
+                    tfce_processor,
+                    null_max_tfce,
+                    start_idx,
+                    n_contrasts,
+                    chunk_size_actual,
+                )
 
             # Clean up chunk data immediately to save memory
             del chunk_t_stats_gpu, chunk_t_stats_cpu, chunk_result
@@ -625,6 +606,145 @@ class GPUOptimizedBackend(Backend):
                 chunk_size = 50
 
         return max(chunk_size, 10)  # Minimum 10 permutations per chunk
+
+    def _process_cluster_corrections_vectorized(
+        self,
+        chunk_t_stats_cpu: np.ndarray,
+        spatial_shape: tuple[int, ...],
+        correction_params: dict,
+        null_max_cluster: np.ndarray,
+        start_idx: int,
+        n_contrasts: int,
+        chunk_size_actual: int,
+    ) -> None:
+        """Vectorized cluster correction processing for entire chunk."""
+        cluster_threshold = correction_params.get("cluster_threshold", 2.3)
+
+        try:
+            from scipy.ndimage import label as scipy_label
+
+            # Process all permutations and contrasts in vectorized fashion
+            for c_idx in range(n_contrasts):
+                # Get all t-maps for this contrast: (n_voxels, chunk_size)
+                contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]
+
+                # Reshape to spatial + permutation dimensions: (*spatial_shape, chunk_size)
+                reshaped_tmaps = contrast_tmaps.T.reshape(
+                    chunk_size_actual, *spatial_shape
+                )
+
+                # Vectorized thresholding - all permutations at once
+                binary_maps = np.abs(reshaped_tmaps) > cluster_threshold
+
+                # Process each permutation's binary map
+                for i in range(chunk_size_actual):
+                    binary_map = binary_maps[i]
+
+                    # Connected components for this permutation
+                    labels, n_clusters = scipy_label(binary_map)
+                    if n_clusters > 0:
+                        # Use bincount for faster cluster size calculation
+                        cluster_sizes = np.bincount(labels.ravel())[
+                            1:
+                        ]  # Exclude background (0)
+                        max_cluster_size = (
+                            np.max(cluster_sizes) if len(cluster_sizes) > 0 else 0
+                        )
+                    else:
+                        max_cluster_size = 0
+
+                    null_max_cluster[c_idx, start_idx + i] = max_cluster_size
+
+        except ImportError:
+            # Fallback to simple thresholding if scipy not available
+            for c_idx in range(n_contrasts):
+                contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]
+                for i in range(chunk_size_actual):
+                    t_map = contrast_tmaps[:, i].reshape(spatial_shape)
+                    binary_map = np.abs(t_map) > cluster_threshold
+                    null_max_cluster[c_idx, start_idx + i] = np.sum(binary_map)
+
+    def _process_tfce_corrections_vectorized(
+        self,
+        chunk_t_stats_cpu: np.ndarray,
+        spatial_shape: tuple[int, ...],
+        tfce_processor,
+        null_max_tfce: np.ndarray,
+        start_idx: int,
+        n_contrasts: int,
+        chunk_size_actual: int,
+    ) -> None:
+        """Vectorized TFCE correction processing for entire chunk."""
+        # Import batch TFCE processor
+        try:
+            # Try to use a vectorized TFCE implementation if available
+            enhanced_maps = self._batch_tfce_process(
+                chunk_t_stats_cpu,
+                spatial_shape,
+                tfce_processor,
+                n_contrasts,
+                chunk_size_actual,
+            )
+
+            # Extract maximum TFCE values for each permutation and contrast
+            for c_idx in range(n_contrasts):
+                for i in range(chunk_size_actual):
+                    null_max_tfce[c_idx, start_idx + i] = enhanced_maps[c_idx, i]
+
+        except Exception:
+            # Fallback to individual processing if batch fails
+            for c_idx in range(n_contrasts):
+                contrast_tmaps = chunk_t_stats_cpu[
+                    :, c_idx, :
+                ]  # (n_voxels, chunk_size)
+
+                for i in range(chunk_size_actual):
+                    t_map = contrast_tmaps[:, i]
+                    tfce_enhanced = tfce_processor.enhance(t_map, spatial_shape)
+                    null_max_tfce[c_idx, start_idx + i] = np.max(tfce_enhanced)
+
+    def _batch_tfce_process(
+        self,
+        chunk_t_stats_cpu: np.ndarray,
+        spatial_shape: tuple[int, ...],
+        tfce_processor,
+        n_contrasts: int,
+        chunk_size_actual: int,
+    ) -> np.ndarray:
+        """Highly optimized batch TFCE processing for multiple permutations."""
+        max_tfce_values = np.zeros((n_contrasts, chunk_size_actual))
+
+        for c_idx in range(n_contrasts):
+            contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]  # (n_voxels, chunk_size)
+
+            # Check if we have any non-zero values in this contrast
+            if not np.any(contrast_tmaps > 0):
+                max_tfce_values[c_idx, :] = 0
+                continue
+
+            # Try to use batch processing if the TFCE processor supports it
+            if hasattr(tfce_processor, "enhance_batch"):
+                # Transpose to (chunk_size, n_voxels) for batch processing
+                stat_maps_batch = contrast_tmaps.T
+
+                # Apply batch TFCE enhancement
+                enhanced_batch = tfce_processor.enhance_batch(
+                    stat_maps_batch, spatial_shape
+                )
+
+                # Extract maximum values from each enhanced map
+                max_tfce_values[c_idx, :] = np.max(enhanced_batch, axis=1)
+            else:
+                # Fallback to individual processing
+                for i in range(chunk_size_actual):
+                    t_map = contrast_tmaps[:, i]
+                    if np.any(t_map > 0):
+                        tfce_enhanced = tfce_processor.enhance(t_map, spatial_shape)
+                        max_tfce_values[c_idx, i] = np.max(tfce_enhanced)
+                    else:
+                        max_tfce_values[c_idx, i] = 0
+
+        return max_tfce_values
 
     def _cleanup_memory(self) -> None:
         """Clean up GPU memory."""

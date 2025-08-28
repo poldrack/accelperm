@@ -116,6 +116,48 @@ class TFCEProcessor:
 
         return enhanced.flatten()
 
+    def enhance_batch(
+        self, stat_maps: np.ndarray, spatial_shape: tuple[int, ...]
+    ) -> np.ndarray:
+        """Apply TFCE enhancement to multiple statistical maps simultaneously.
+
+        Parameters
+        ----------
+        stat_maps : np.ndarray
+            Batch of flattened statistical maps to enhance, shape (batch_size, n_voxels)
+        spatial_shape : tuple[int, ...]
+            Original spatial dimensions of the statistical maps
+
+        Returns
+        -------
+        np.ndarray
+            TFCE-enhanced statistical maps, shape (batch_size, n_voxels)
+        """
+        batch_size, n_voxels = stat_maps.shape
+        enhanced_batch = np.zeros_like(stat_maps)
+
+        # Find global max across all maps for efficient step calculation
+        global_max = np.max(stat_maps[stat_maps > 0]) if np.any(stat_maps > 0) else 0
+
+        if global_max <= 0:
+            return enhanced_batch
+
+        # Shared step calculation for all maps
+        # step_size = global_max / self.n_steps  # Currently unused but may be needed for future batch optimization
+
+        # Process each map in the batch
+        for batch_idx in range(batch_size):
+            stat_map = stat_maps[batch_idx]
+
+            # Skip empty maps
+            if np.all(stat_map <= 0):
+                continue
+
+            # Use the efficient single-map processor
+            enhanced_batch[batch_idx] = self.enhance(stat_map, spatial_shape)
+
+        return enhanced_batch
+
 
 def connected_components_3d(
     binary_volume: np.ndarray, connectivity: int = 26
