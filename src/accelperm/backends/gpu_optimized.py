@@ -614,54 +614,55 @@ class GPUOptimizedBackend(Backend):
             total_memory = torch.cuda.get_device_properties(0).total_memory
             available_memory = total_memory * self.max_memory_fraction
         elif self.device.type == "mps":
-            # MPS uses unified memory - be much more aggressive
+            # MPS uses unified memory - be conservative to avoid OOM
             import psutil
 
             total_memory = psutil.virtual_memory().total
             available_memory = (
                 total_memory
-                * 0.6  # INCREASED: Use 60% instead of 30% for larger chunks
+                * 0.5  # MODERATE: Use 50% of system memory for MPS (was too conservative)
             )
         else:
             available_memory = 4 * 1024**3  # INCREASED: 4GB default for CPU
 
         if n_voxels and n_subjects:
-            # Estimate memory per permutation with more accurate calculations
+            # DATA-AWARE memory estimation based on actual dataset size
             bytes_per_float = 4  # float32
             n_regressors = 1  # Conservative estimate for one-sample t-test
 
-            # More accurate memory estimation
+            # Comprehensive memory estimation for neuroimaging data processing
             memory_per_perm = (
-                n_voxels * n_subjects * bytes_per_float  # Y data
+                n_voxels * n_subjects * bytes_per_float  # Y data (input)
                 + n_subjects * n_regressors * bytes_per_float  # X per permutation
                 + n_regressors * n_regressors * bytes_per_float  # XtX per permutation
                 + n_regressors * n_voxels * bytes_per_float  # beta per permutation
                 + n_voxels * n_contrasts * bytes_per_float  # t_stats per permutation
-            ) * 2  # REDUCED: 2x safety factor instead of 3x (was too conservative)
+                + n_voxels * n_subjects * bytes_per_float  # residuals intermediate
+                + n_voxels * n_contrasts * bytes_per_float  # intermediate calculations
+            ) * 3  # BALANCED: 3x safety factor for MPS stability (reduced from 4x)
 
-            max_permutations = int(available_memory / memory_per_perm)
+            # Calculate memory-safe chunk size based on actual data dimensions
+            memory_safe_chunk_size = max(1, int(available_memory / memory_per_perm))
 
-            # AGGRESSIVE CHUNKING: Use much larger chunks to minimize overhead
-            if self.device.type == "mps":
-                chunk_size = min(
-                    max_permutations, 1000
-                )  # INCREASED: 1000 instead of 250
-            elif self.device.type == "cuda":
-                chunk_size = min(
-                    max_permutations, 2000
-                )  # INCREASED: 2000 instead of 500
-            else:
-                chunk_size = min(
-                    max_permutations, 800
-                )  # INCREASED: 800 instead of default
+            # Log memory calculation for debugging
+            if hasattr(self, "_debug") and self._debug:
+                data_size_gb = (n_voxels * n_subjects * 4) / (1024**3)
+                mem_per_perm_mb = memory_per_perm / (1024**2)
+                print(
+                    f"MEMORY CALC: Data={data_size_gb:.1f}GB, {mem_per_perm_mb:.1f}MB/perm, Max chunk={memory_safe_chunk_size}"
+                )
+
+            # DATA-AWARE: Use memory calculation as primary constraint, not fixed caps
+            chunk_size = memory_safe_chunk_size
         else:
-            # AGGRESSIVE defaults to reduce chunk count
+            # FALLBACK: Conservative defaults when data dimensions unknown
+            # These will be overridden by _enforce_max_chunk_limit() anyway
             if self.device.type == "mps":
-                chunk_size = 800  # INCREASED: 800 instead of 100
+                chunk_size = 200  # CONSERVATIVE: Reduced for MPS safety
             elif self.device.type == "cuda":
-                chunk_size = 1500  # INCREASED: 1500 instead of 500
+                chunk_size = 500  # MODERATE: CUDA has dedicated memory
             else:
-                chunk_size = 500  # INCREASED: 500 instead of 50
+                chunk_size = 100  # CONSERVATIVE: CPU fallback
 
         return max(
             chunk_size, 100
@@ -670,53 +671,55 @@ class GPUOptimizedBackend(Backend):
     def _enforce_max_chunk_limit(
         self, base_chunk_size: int, n_permutations: int, max_chunks: int = 3
     ) -> int:
-        """Enforce maximum chunk limit to minimize overhead.
+        """Enforce maximum chunk limit while respecting memory constraints.
 
-        OPTIMIZATION: Ensure we never exceed max_chunks (default 3) to minimize
-        setup/teardown overhead that was causing ~60% performance loss.
+        OPTIMIZATION: Balance memory safety with chunk count minimization.
+        Prioritize memory safety over strict chunk limits to avoid OOM.
 
         Parameters
         ----------
         base_chunk_size : int
-            Base chunk size from memory calculations
+            Memory-safe chunk size from data-aware calculations
         n_permutations : int
             Total number of permutations to process
         max_chunks : int
-            Maximum number of chunks allowed (default 3)
+            Target maximum chunks (default 3), but memory safety takes precedence
 
         Returns
         -------
         int
-            Optimized chunk size that results in ≤max_chunks
+            Optimized chunk size balancing memory safety and chunk minimization
         """
         if n_permutations <= base_chunk_size:
             # All permutations fit in one chunk - optimal
             return n_permutations
 
-        # Calculate how many chunks we'd have with base size
+        # Calculate how many chunks we'd have with memory-safe base size
         n_chunks_with_base = (n_permutations + base_chunk_size - 1) // base_chunk_size
 
         if n_chunks_with_base <= max_chunks:
-            # Base chunk size already gives us ≤max_chunks - use it
+            # Memory-safe size already gives us ≤max_chunks - perfect!
             return base_chunk_size
 
-        # Need larger chunks to stay within max_chunks limit
-        # Calculate minimum chunk size needed for exactly max_chunks
+        # Memory-safe size would exceed max_chunks
+        # Calculate what chunk size would give us exactly max_chunks
         min_chunk_for_max_chunks = (n_permutations + max_chunks - 1) // max_chunks
 
-        # Use the larger of: memory-safe size or chunks-minimizing size
-        optimized_chunk_size = max(base_chunk_size, min_chunk_for_max_chunks)
+        # CRITICAL: Only increase chunk size if it doesn't exceed memory-safe size by too much
+        # Allow modest increase (up to 25%) for chunk count optimization, but not more
+        max_safe_increase = int(base_chunk_size * 1.25)
 
-        # Verify we actually get ≤max_chunks with this size
-        actual_chunks = (
-            n_permutations + optimized_chunk_size - 1
-        ) // optimized_chunk_size
-
-        # Safety check: if we still exceed max_chunks, force it
-        if actual_chunks > max_chunks:
-            optimized_chunk_size = (n_permutations + max_chunks - 1) // max_chunks
-
-        return optimized_chunk_size
+        if min_chunk_for_max_chunks <= max_safe_increase:
+            # Safe to increase chunk size for fewer chunks
+            return min_chunk_for_max_chunks
+        else:
+            # Chunk size needed for max_chunks would risk OOM - prioritize memory safety
+            # Accept more chunks to stay memory-safe
+            if hasattr(self, "_debug") and self._debug:
+                print(
+                    f"CHUNK SAFETY: Using {n_chunks_with_base} chunks (memory-safe) instead of {max_chunks} (risky)"
+                )
+            return base_chunk_size
 
     def _process_cluster_corrections_gpu_accelerated(
         self,
