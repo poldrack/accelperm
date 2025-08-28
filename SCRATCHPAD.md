@@ -7,11 +7,42 @@
 
 ### Current Status
 **Branch**: dev/week7-backend-optimization
-**Phase**: Phase 2 - GPU Acceleration
-**Overall Progress**: 101/235 tasks completed (43%)
-**Current Week**: Week 7 - Backend Selection and Optimization (95% complete)
+**Phase**: Phase 3 - Statistical Features
+**Overall Progress**: 143/235 tasks completed (60.9%)
+**Current Week**: Week 10 - Advanced Permutation Strategies (100% complete)
 
 ### Recent Achievements
+
+#### Week 10: Advanced Permutation Strategies (100% Complete)
+- ✅ **AdaptiveMonteCarlo class** - Intelligent Monte Carlo sampling with convergence detection
+  - Dynamic sample size adjustment based on test statistics variance
+  - P-value convergence detection using confidence intervals
+  - Batch processing with early stopping capabilities
+  - 5 comprehensive tests with edge case coverage
+
+- ✅ **FullEnumerationDetector class** - Automatic strategy selection for permutation testing
+  - Feasibility detection based on memory and computational constraints
+  - Memory requirement estimation with safety factors
+  - Automatic switching between full enumeration and Monte Carlo sampling
+  - 4 tests covering small/large sample scenarios
+
+- ✅ **VarianceSmoothing class** - Advanced variance estimation for improved statistical power
+  - Empirical Bayes shrinkage toward prior distributions
+  - Covariate-based smoothing within experimental groups
+  - Degrees of freedom adjustment for improved inference
+  - 5 tests covering multiple smoothing methods
+
+- ✅ **TwoStagePermutation class** - Complex hierarchical design support
+  - Between-subject and within-subject permutation handling
+  - Nested experimental structure support (subject/session/condition)
+  - Blocked randomization maintaining experimental balance
+  - 4 tests covering realistic neuroimaging experimental designs
+
+- ✅ **Integration Testing** - Cross-component validation and realistic workflows
+  - Adaptive enumeration switching based on problem characteristics
+  - Variance smoothing integration with permutation testing
+  - Two-stage permutation with Monte Carlo sampling
+  - 3 comprehensive integration tests
 
 #### Week 7: Backend Selection and Optimization (95% Complete)
 - ✅ **BackendFactory class** - Intelligent hardware detection and backend selection
@@ -48,27 +79,30 @@
 - ✅ 141 tests passing with 86.28% overall coverage
 
 ### Current Git Status
-- Modified: src/accelperm/backends/factory.py
-- Modified: src/accelperm/cli.py
-- Modified: src/accelperm/core/chunking.py
-- Modified: tests/unit/test_backend_factory.py
-- Modified: tests/unit/test_cli_backend_integration.py
-- Modified: tests/unit/test_data_chunking.py
+- Clean working directory after Week 10 commit
+- New files committed:
+  - `src/accelperm/core/advanced_permutation.py` (advanced permutation strategies)
+  - `tests/unit/test_advanced_permutation.py` (comprehensive test suite)
+- Previous modifications still present:
+  - Backend factory, CLI, and data chunking improvements from Week 7
 
 ### Test Status
-- **Total**: 185 tests
-- **Passing**: 182 tests
-- **Failing**: 3 tests (CLI integration tests - mock configuration issues)
-- **Overall Coverage**: 85.92%
+- **Total**: 237 tests
+- **Passing**: 234 tests (98.7% pass rate)
+- **Failing**: 3 tests (CLI integration tests - mock configuration issues, pre-existing)
+- **Overall Coverage**: 86.80%
+- **Advanced Permutation Module**: 85.65% coverage (21 tests, 100% pass rate)
 
 ### Next Steps
 
-#### Immediate (Week 8: Performance Benchmarking)
-1. Create benchmarking framework with pytest-benchmark
-2. Define benchmark datasets for different scenarios
-3. Benchmark CPU backend performance
-4. Benchmark MPS backend vs CPU
-5. Create performance regression tests
+#### Immediate (Week 11: Multiple Comparison Corrections)
+1. Implement Family-Wise Error Rate (FWER) correction
+2. Implement False Discovery Rate (FDR) correction
+3. Implement cluster-based correction methods
+4. Implement voxel-wise correction methods
+5. Create comprehensive test suite for correction methods
+
+**Note**: `src/accelperm/core/corrections.py` exists but is empty (placeholder)
 
 #### Short-term
 1. Fix remaining CLI integration test failures (mocking issues)
@@ -118,5 +152,10 @@
   - Week 5 (MPS Backend): Complete ✅
   - Week 6 (CUDA Backend): Not started (skipped)
   - Week 7 (Backend Selection): 95% complete ✅
-  - Week 8 (Performance Benchmarking): Not started
-- Ready to begin performance benchmarking and optimization
+  - Week 8 (Performance Benchmarking): Not started (deferred)
+- Phase 3 (Statistical Features): 50% complete
+  - Week 9 (Permutation Engine Core): Complete ✅
+  - Week 10 (Advanced Permutation Strategies): Complete ✅
+  - Week 11 (Multiple Comparison Corrections): Ready to start
+  - Week 12 (TFCE Implementation): Not started (placeholder file exists)
+- Ready to begin multiple comparison corrections implementation

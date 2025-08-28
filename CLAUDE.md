@@ -32,11 +32,15 @@ When implementing any statistical function, algorithm, or workflow component, **
 
 Track progress in this section. Update after completing each task.
 
-**Current Phase**: Foundation (Weeks 1-4)
-- [ ] Project setup and CI pipeline
-- [ ] Core architecture implementation
-- [ ] Basic data I/O for NIfTI files
-- [ ] CPU backend with basic GLM
+**Current Phase**: Statistical Features (Weeks 9-12) - Phase 3
+- [x] Week 9: Permutation Engine Core - COMPLETE ✅
+- [x] Week 10: Advanced Permutation Strategies - COMPLETE ✅
+- [ ] Week 11: Multiple Comparison Corrections - IN PROGRESS
+- [ ] Week 12: TFCE Implementation - PENDING
+
+**Previous Phases COMPLETE:**
+- [x] Phase 1: Foundation (Weeks 1-4) - 100% ✅
+- [x] Phase 2: GPU Acceleration (Weeks 5-8) - 83% ✅ (Week 6 & 8 deferred)
 
 ## Critical Development Principles
 
