@@ -1,0 +1,2 @@
+randomise -i filtered_func_data.nii.gz -o randomise/randomise -1 -n 2500 -T -
+149.14s user 3.81s system 99% cpu 2:32.98 total

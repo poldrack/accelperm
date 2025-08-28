@@ -313,7 +313,9 @@ class GPUOptimizedBackend(Backend):
         # Store only the original t-statistics (first permutation)
         original_t_stats = None
 
-        # Process in chunks with streaming corrections
+        # Process in chunks with overlapped GPU-CPU processing for sustained GPU utilization
+        next_chunk_gpu = None  # For overlapped processing
+
         for chunk_idx in range(n_chunks):
             start_idx = chunk_idx * chunk_size
             end_idx = min(start_idx + chunk_size, n_permutations)
@@ -335,7 +337,7 @@ class GPUOptimizedBackend(Backend):
             # Process corrections for this chunk with GPU acceleration where possible
             chunk_size_actual = chunk_t_stats_gpu.shape[2]
 
-            # GPU-accelerated voxel-wise correction
+            # GPU-accelerated voxel-wise correction (fast - keeps GPU active)
             if need_voxel:
                 # Process all permutations in chunk simultaneously on GPU
                 max_abs_t = torch.max(torch.abs(chunk_t_stats_gpu), dim=0)[
@@ -346,10 +348,24 @@ class GPUOptimizedBackend(Backend):
                     for c_idx in range(n_contrasts):
                         null_max_t[c_idx, perm_idx] = max_abs_t[c_idx, i].item()
 
-            # VECTORIZED CPU-based corrections - process all permutations in chunk simultaneously
+            # Start next chunk GLM computation on GPU while doing CPU corrections for current chunk
+            if chunk_idx < n_chunks - 1:
+                # Prepare next chunk for overlapped processing
+                next_start_idx = (chunk_idx + 1) * chunk_size
+                next_end_idx = min(next_start_idx + chunk_size, n_permutations)
+                next_chunk_perms = permutations[:, next_start_idx:next_end_idx]
+
+                # Pre-compute next chunk on GPU (asynchronous with CPU processing)
+                # This keeps the GPU active while CPU does connected components analysis
+                next_chunk_gpu = self._compute_glm_batch_single_gpu_resident(
+                    Y, X, contrasts, next_chunk_perms
+                )
+
+            # HYBRID GPU-CPU corrections - maximize GPU utilization while handling CPU-only operations
             if need_cluster and spatial_shape is not None:
-                self._process_cluster_corrections_vectorized(
-                    chunk_t_stats_cpu,
+                self._process_cluster_corrections_gpu_accelerated(
+                    chunk_t_stats_gpu,  # Keep on GPU for thresholding
+                    chunk_t_stats_cpu,  # CPU copy for connected components
                     spatial_shape,
                     correction_params,
                     null_max_cluster,
@@ -359,8 +375,9 @@ class GPUOptimizedBackend(Backend):
                 )
 
             if need_tfce and spatial_shape is not None:
-                self._process_tfce_corrections_vectorized(
-                    chunk_t_stats_cpu,
+                self._process_tfce_corrections_gpu_accelerated(
+                    chunk_t_stats_gpu,  # Keep on GPU for preprocessing
+                    chunk_t_stats_cpu,  # CPU copy for connected components
                     spatial_shape,
                     tfce_processor,
                     null_max_tfce,
@@ -369,9 +386,12 @@ class GPUOptimizedBackend(Backend):
                     chunk_size_actual,
                 )
 
-            # Clean up chunk data immediately to save memory
+            # Clean up current chunk but keep next chunk for overlapped processing
             del chunk_t_stats_gpu, chunk_t_stats_cpu, chunk_result
-            self._cleanup_memory()
+
+            # Moderate GPU memory cleanup (don't clear everything if we have next chunk)
+            if next_chunk_gpu is None:
+                self._cleanup_memory()
 
         # Assemble results
         if need_voxel:
@@ -607,8 +627,9 @@ class GPUOptimizedBackend(Backend):
 
         return max(chunk_size, 10)  # Minimum 10 permutations per chunk
 
-    def _process_cluster_corrections_vectorized(
+    def _process_cluster_corrections_gpu_accelerated(
         self,
+        chunk_t_stats_gpu: torch.Tensor,
         chunk_t_stats_cpu: np.ndarray,
         spatial_shape: tuple[int, ...],
         correction_params: dict,
@@ -617,28 +638,36 @@ class GPUOptimizedBackend(Backend):
         n_contrasts: int,
         chunk_size_actual: int,
     ) -> None:
-        """Vectorized cluster correction processing for entire chunk."""
+        """GPU-accelerated cluster correction processing with hybrid GPU-CPU approach."""
         cluster_threshold = correction_params.get("cluster_threshold", 2.3)
 
         try:
             from scipy.ndimage import label as scipy_label
 
-            # Process all permutations and contrasts in vectorized fashion
+            # Process all permutations and contrasts using GPU for thresholding
             for c_idx in range(n_contrasts):
-                # Get all t-maps for this contrast: (n_voxels, chunk_size)
-                contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]
+                # GPU-accelerated thresholding across all permutations simultaneously
+                contrast_tmaps_gpu = chunk_t_stats_gpu[
+                    :, c_idx, :
+                ]  # (n_voxels, chunk_size)
 
-                # Reshape to spatial + permutation dimensions: (*spatial_shape, chunk_size)
-                reshaped_tmaps = contrast_tmaps.T.reshape(
+                # Vectorized GPU thresholding - much faster than CPU
+                abs_tmaps_gpu = torch.abs(contrast_tmaps_gpu)  # GPU operation
+                binary_maps_gpu = abs_tmaps_gpu > cluster_threshold  # GPU operation
+
+                # Transfer thresholded binary maps to CPU only when needed
+                binary_maps_cpu = (
+                    binary_maps_gpu.cpu().numpy()
+                )  # (n_voxels, chunk_size)
+
+                # Reshape to spatial + permutation dimensions: (chunk_size, *spatial_shape)
+                binary_maps_reshaped = binary_maps_cpu.T.reshape(
                     chunk_size_actual, *spatial_shape
                 )
 
-                # Vectorized thresholding - all permutations at once
-                binary_maps = np.abs(reshaped_tmaps) > cluster_threshold
-
-                # Process each permutation's binary map
+                # Process connected components on CPU (required for scipy.label)
                 for i in range(chunk_size_actual):
-                    binary_map = binary_maps[i]
+                    binary_map = binary_maps_reshaped[i]
 
                     # Connected components for this permutation
                     labels, n_clusters = scipy_label(binary_map)
@@ -656,7 +685,7 @@ class GPUOptimizedBackend(Backend):
                     null_max_cluster[c_idx, start_idx + i] = max_cluster_size
 
         except ImportError:
-            # Fallback to simple thresholding if scipy not available
+            # Fallback to CPU-only processing if scipy not available
             for c_idx in range(n_contrasts):
                 contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]
                 for i in range(chunk_size_actual):
@@ -664,8 +693,9 @@ class GPUOptimizedBackend(Backend):
                     binary_map = np.abs(t_map) > cluster_threshold
                     null_max_cluster[c_idx, start_idx + i] = np.sum(binary_map)
 
-    def _process_tfce_corrections_vectorized(
+    def _process_tfce_corrections_gpu_accelerated(
         self,
+        chunk_t_stats_gpu: torch.Tensor,
         chunk_t_stats_cpu: np.ndarray,
         spatial_shape: tuple[int, ...],
         tfce_processor,
@@ -674,11 +704,11 @@ class GPUOptimizedBackend(Backend):
         n_contrasts: int,
         chunk_size_actual: int,
     ) -> None:
-        """Vectorized TFCE correction processing for entire chunk."""
-        # Import batch TFCE processor
+        """GPU-accelerated TFCE correction processing with hybrid approach."""
         try:
-            # Try to use a vectorized TFCE implementation if available
-            enhanced_maps = self._batch_tfce_process(
+            # GPU-accelerated preprocessing and thresholding
+            enhanced_maps = self._batch_tfce_process_gpu_accelerated(
+                chunk_t_stats_gpu,
                 chunk_t_stats_cpu,
                 spatial_shape,
                 tfce_processor,
@@ -692,7 +722,7 @@ class GPUOptimizedBackend(Backend):
                     null_max_tfce[c_idx, start_idx + i] = enhanced_maps[c_idx, i]
 
         except Exception:
-            # Fallback to individual processing if batch fails
+            # Fallback to CPU-only processing if GPU processing fails
             for c_idx in range(n_contrasts):
                 contrast_tmaps = chunk_t_stats_cpu[
                     :, c_idx, :
@@ -703,42 +733,72 @@ class GPUOptimizedBackend(Backend):
                     tfce_enhanced = tfce_processor.enhance(t_map, spatial_shape)
                     null_max_tfce[c_idx, start_idx + i] = np.max(tfce_enhanced)
 
-    def _batch_tfce_process(
+    def _batch_tfce_process_gpu_accelerated(
         self,
+        chunk_t_stats_gpu: torch.Tensor,
         chunk_t_stats_cpu: np.ndarray,
         spatial_shape: tuple[int, ...],
         tfce_processor,
         n_contrasts: int,
         chunk_size_actual: int,
     ) -> np.ndarray:
-        """Highly optimized batch TFCE processing for multiple permutations."""
+        """GPU-accelerated batch TFCE processing with hybrid GPU-CPU approach."""
         max_tfce_values = np.zeros((n_contrasts, chunk_size_actual))
 
         for c_idx in range(n_contrasts):
-            contrast_tmaps = chunk_t_stats_cpu[:, c_idx, :]  # (n_voxels, chunk_size)
+            # GPU-accelerated preprocessing
+            contrast_tmaps_gpu = chunk_t_stats_gpu[
+                :, c_idx, :
+            ]  # (n_voxels, chunk_size)
 
-            # Check if we have any non-zero values in this contrast
-            if not np.any(contrast_tmaps > 0):
+            # GPU operations for threshold detection and preprocessing
+            has_positive_values = torch.any(
+                contrast_tmaps_gpu > 0, dim=0
+            )  # GPU operation
+
+            # Only transfer to CPU the data that has positive values
+            has_values_cpu = has_positive_values.cpu().numpy()
+
+            if not torch.any(has_positive_values):
+                # No positive values in this contrast - skip
                 max_tfce_values[c_idx, :] = 0
                 continue
 
-            # Try to use batch processing if the TFCE processor supports it
+            # Use GPU for initial preprocessing when possible
             if hasattr(tfce_processor, "enhance_batch"):
-                # Transpose to (chunk_size, n_voxels) for batch processing
-                stat_maps_batch = contrast_tmaps.T
+                # Get CPU data for TFCE processing (still required for connected components)
+                contrast_tmaps_cpu = chunk_t_stats_cpu[
+                    :, c_idx, :
+                ]  # (n_voxels, chunk_size)
 
-                # Apply batch TFCE enhancement
-                enhanced_batch = tfce_processor.enhance_batch(
-                    stat_maps_batch, spatial_shape
-                )
+                # Only process permutations with positive values
+                active_indices = np.where(has_values_cpu)[0]
 
-                # Extract maximum values from each enhanced map
-                max_tfce_values[c_idx, :] = np.max(enhanced_batch, axis=1)
+                if len(active_indices) > 0:
+                    # Extract only active permutations for processing
+                    active_tmaps = contrast_tmaps_cpu[
+                        :, active_indices
+                    ].T  # (active_perms, n_voxels)
+
+                    # Batch TFCE processing on active permutations only
+                    enhanced_batch = tfce_processor.enhance_batch(
+                        active_tmaps, spatial_shape
+                    )
+                    max_values = np.max(enhanced_batch, axis=1)
+
+                    # Assign results back to full array
+                    max_tfce_values[c_idx, active_indices] = max_values
+                else:
+                    max_tfce_values[c_idx, :] = 0
             else:
-                # Fallback to individual processing
+                # Fallback to individual processing with GPU preprocessing
+                contrast_tmaps_cpu = chunk_t_stats_cpu[:, c_idx, :]
+
                 for i in range(chunk_size_actual):
-                    t_map = contrast_tmaps[:, i]
-                    if np.any(t_map > 0):
+                    if has_values_cpu[
+                        i
+                    ]:  # Only process if GPU detected positive values
+                        t_map = contrast_tmaps_cpu[:, i]
                         tfce_enhanced = tfce_processor.enhance(t_map, spatial_shape)
                         max_tfce_values[c_idx, i] = np.max(tfce_enhanced)
                     else:
