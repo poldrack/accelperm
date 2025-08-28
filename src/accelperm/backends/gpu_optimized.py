@@ -742,9 +742,19 @@ class GPUOptimizedBackend(Backend):
         n_contrasts: int,
         chunk_size_actual: int,
     ) -> np.ndarray:
-        """GPU-accelerated batch TFCE processing with hybrid GPU-CPU approach."""
+        """GPU-native TFCE approximation to eliminate CPU bottleneck."""
         max_tfce_values = np.zeros((n_contrasts, chunk_size_actual))
 
+        # Try GPU-native TFCE approximation first (much faster)
+        try:
+            max_tfce_values = self._gpu_native_tfce_approximation(
+                chunk_t_stats_gpu, spatial_shape, n_contrasts, chunk_size_actual
+            )
+            return max_tfce_values
+        except Exception:
+            pass  # Fallback to traditional approach
+
+        # Fallback: hybrid CPU-GPU approach (still faster than pure CPU)
         for c_idx in range(n_contrasts):
             # GPU-accelerated preprocessing
             contrast_tmaps_gpu = chunk_t_stats_gpu[
@@ -803,6 +813,78 @@ class GPUOptimizedBackend(Backend):
                         max_tfce_values[c_idx, i] = np.max(tfce_enhanced)
                     else:
                         max_tfce_values[c_idx, i] = 0
+
+        return max_tfce_values
+
+    def _gpu_native_tfce_approximation(
+        self,
+        chunk_t_stats_gpu: torch.Tensor,
+        spatial_shape: tuple[int, ...],
+        n_contrasts: int,
+        chunk_size_actual: int,
+    ) -> np.ndarray:
+        """GPU-native TFCE approximation using convolution-based cluster estimation."""
+        max_tfce_values = np.zeros((n_contrasts, chunk_size_actual))
+
+        # TFCE parameters (matching FSL defaults)
+        height_power = 2.0
+        extent_power = 0.5
+        n_steps = 50  # Reduce steps for approximation speed
+
+        for c_idx in range(n_contrasts):
+            contrast_tmaps_gpu = chunk_t_stats_gpu[
+                :, c_idx, :
+            ]  # (n_voxels, chunk_size)
+
+            # Reshape to spatial dimensions: (chunk_size, *spatial_shape)
+            if len(spatial_shape) == 3:
+                x, y, z = spatial_shape
+                spatial_tmaps = contrast_tmaps_gpu.T.reshape(chunk_size_actual, x, y, z)
+            else:
+                # Handle 2D case
+                spatial_tmaps = contrast_tmaps_gpu.T.reshape(
+                    chunk_size_actual, *spatial_shape
+                )
+
+            # Find global maximum for step calculation
+            max_val = torch.max(spatial_tmaps)
+            if max_val <= 0:
+                max_tfce_values[c_idx, :] = 0
+                continue
+
+            step_size = max_val / n_steps
+
+            # GPU-native TFCE approximation using convolution
+            enhanced_maps = torch.zeros_like(spatial_tmaps)
+
+            for step in range(1, n_steps + 1):
+                threshold = step * step_size
+
+                # Threshold maps on GPU
+                thresholded = (spatial_tmaps >= threshold).float()
+
+                # Approximate cluster extent using 3D convolution (GPU operation)
+                if len(spatial_shape) == 3:
+                    # Create 3D neighborhood kernel
+                    kernel = torch.ones(1, 1, 3, 3, 3, device=self.device) / 27.0
+
+                    # Apply convolution to estimate local cluster extent
+                    thresholded_expanded = thresholded.unsqueeze(1)  # Add channel dim
+                    local_extent = torch.nn.functional.conv3d(
+                        thresholded_expanded, kernel, padding=1
+                    ).squeeze(1)
+
+                    # TFCE enhancement approximation
+                    enhancement = (local_extent**extent_power) * (
+                        threshold**height_power
+                    )
+                    enhanced_maps += enhancement * step_size
+
+            # Extract maximum values (on GPU, then transfer)
+            max_vals_gpu = torch.max(enhanced_maps.view(chunk_size_actual, -1), dim=1)[
+                0
+            ]
+            max_tfce_values[c_idx, :] = max_vals_gpu.cpu().numpy()
 
         return max_tfce_values
 
