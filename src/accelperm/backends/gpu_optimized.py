@@ -209,16 +209,14 @@ class GPUOptimizedBackend(Backend):
             # Extract null distribution (exclude unpermuted case)
             null_dist = t_stats[:, :, 1:] if n_permutations > 1 else t_stats
 
-            # Convert to CPU for CPU-based corrections, but keep GPU copy for GPU corrections
-            t_stats_cpu = t_stats.float().cpu().numpy()
-            null_dist_cpu = null_dist.float().cpu().numpy()
-
-            # Return both GPU and CPU versions
+            # OPTIMIZATION: Return only GPU version - defer CPU transfer for maximum performance
+            # CPU transfer will be done lazily only when needed for spatial operations
             return {
-                "t_stats_gpu": t_stats,  # Keep on GPU for GPU-accelerated corrections
-                "t_stats_cpu": t_stats_cpu,  # CPU copy for CPU-based corrections
-                "null_distribution": null_dist_cpu,
-                "original_stats": t_stats_cpu[:, :, 0] if n_permutations > 1 else None,
+                "t_stats_gpu": t_stats,  # Primary GPU data - keep on GPU
+                "null_distribution": null_dist,  # Also keep on GPU initially
+                "original_stats": t_stats[:, :, 0]
+                if n_permutations > 1
+                else None,  # Keep on GPU
             }
 
     def _compute_glm_batch_chunked(
@@ -343,16 +341,24 @@ class GPUOptimizedBackend(Backend):
             # Extract chunk of permutations
             chunk_perms = permutations[:, start_idx:end_idx]
 
-            # Compute GLM for this chunk - keep on GPU for corrections processing
+            # OPTIMIZATION: Compute GLM and keep entirely on GPU - minimize CPU transfers
             chunk_result = self._compute_glm_batch_single_gpu_resident(
                 Y, X, contrasts, chunk_perms
             )
-            chunk_t_stats_gpu = chunk_result["t_stats_gpu"]  # Keep on GPU
-            chunk_t_stats_cpu = chunk_result["t_stats_cpu"]  # For CPU-only corrections
+            chunk_t_stats_gpu = chunk_result["t_stats_gpu"]  # Primary GPU data
+
+            # DELAYED CPU TRANSFER: Only convert to CPU when absolutely necessary for spatial operations
+            chunk_t_stats_cpu = None  # Defer CPU transfer until needed
 
             # Store original stats from first permutation of first chunk
             if chunk_idx == 0:
-                original_t_stats = chunk_t_stats_cpu[:, :, 0].copy()
+                # MINIMAL CPU TRANSFER: Only transfer first permutation for original stats
+                if chunk_result["original_stats"] is not None:
+                    original_t_stats = (
+                        chunk_result["original_stats"].cpu().numpy().copy()
+                    )
+                else:
+                    original_t_stats = chunk_t_stats_gpu[:, :, 0].cpu().numpy().copy()
 
             # Process corrections for this chunk with GPU acceleration where possible
             chunk_size_actual = chunk_t_stats_gpu.shape[2]
@@ -383,6 +389,10 @@ class GPUOptimizedBackend(Backend):
 
             # HYBRID GPU-CPU corrections - maximize GPU utilization while handling CPU-only operations
             if need_cluster and spatial_shape is not None:
+                # LAZY CPU TRANSFER: Only transfer to CPU when needed for spatial operations
+                if chunk_t_stats_cpu is None:
+                    chunk_t_stats_cpu = chunk_t_stats_gpu.cpu().numpy()
+
                 self._process_cluster_corrections_gpu_accelerated(
                     chunk_t_stats_gpu,  # Keep on GPU for thresholding
                     chunk_t_stats_cpu,  # CPU copy for connected components
@@ -395,6 +405,10 @@ class GPUOptimizedBackend(Backend):
                 )
 
             if need_tfce and spatial_shape is not None:
+                # LAZY CPU TRANSFER: Only transfer to CPU when needed for spatial operations
+                if chunk_t_stats_cpu is None:
+                    chunk_t_stats_cpu = chunk_t_stats_gpu.cpu().numpy()
+
                 self._process_tfce_corrections_gpu_accelerated(
                     chunk_t_stats_gpu,  # Keep on GPU for preprocessing
                     chunk_t_stats_cpu,  # CPU copy for connected components
@@ -407,7 +421,9 @@ class GPUOptimizedBackend(Backend):
                 )
 
             # Clean up current chunk but keep next chunk for overlapped processing
-            del chunk_t_stats_gpu, chunk_t_stats_cpu, chunk_result
+            del chunk_t_stats_gpu, chunk_result
+            if chunk_t_stats_cpu is not None:
+                del chunk_t_stats_cpu
 
             # OPTIMIZATION: Reduce cleanup frequency for fewer, larger chunks
             # Only cleanup every other chunk or when no next chunk (reduces overhead)

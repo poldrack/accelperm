@@ -11,7 +11,6 @@ from scipy.ndimage import label as scipy_label
 
 from accelperm.backends.factory import BackendFactory
 from accelperm.core.corrections import (
-    BonferroniCorrection,
     ClusterCorrection,
     FDRCorrection,
     FWERCorrection,
@@ -375,7 +374,7 @@ def _generate_null_distributions_batch(
     perm_engine = VectorizedPermutationEngine(backend)
 
     if verbose:
-        console.print(f"[green]Using GPU-optimized batch processing[/green]")
+        console.print("[green]Using GPU-optimized batch processing[/green]")
         console.print(
             f"Generating {n_permutations} permutations for {n_voxels} voxels, {n_contrasts} contrasts..."
         )
@@ -624,7 +623,7 @@ def _generate_null_distributions_sequential(
         console=console,
         transient=True,
     ) as progress:
-        task = progress.add_task(f"Running permutations...", total=n_permutations)
+        task = progress.add_task("Running permutations...", total=n_permutations)
 
         # Process permutations in batches for better GPU utilization
         for batch_start in range(0, n_permutations, batch_size):
@@ -914,7 +913,7 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
                 console.print(
                     f"Design matrix: {X.shape[0]} subjects, {X.shape[1]} regressor (intercept)"
                 )
-                console.print(f"Contrast: test mean != 0")
+                console.print("Contrast: test mean != 0")
         else:
             # Load design matrix
             if config["verbose"]:
@@ -1167,7 +1166,9 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
             else "none",
             "alpha": config["alpha"],
             "max_t_stat": float(glm_result["t_stat"].max()),
-            "min_p_value": float(glm_result["p_values"].min()),
+            "min_p_value": float(glm_result["p_values"].min())
+            if glm_result["p_values"] is not None
+            else "N/A (streaming mode)",
         }
 
         # Add correction summary for each method
