@@ -8,154 +8,165 @@
 ### Current Status
 **Branch**: dev/week7-backend-optimization
 **Phase**: Phase 3 - Statistical Features
-**Overall Progress**: 143/235 tasks completed (60.9%)
-**Current Week**: Week 10 - Advanced Permutation Strategies (100% complete)
+**Overall Progress**: 170/262 tasks completed (64.9%)
+**Current Week**: Week 12 - TFCE Implementation (Ready to Start)
 
-### Recent Achievements
+### Recently Completed
 
-#### Week 10: Advanced Permutation Strategies (100% Complete)
-- ✅ **AdaptiveMonteCarlo class** - Intelligent Monte Carlo sampling with convergence detection
-  - Dynamic sample size adjustment based on test statistics variance
-  - P-value convergence detection using confidence intervals
-  - Batch processing with early stopping capabilities
-  - 5 comprehensive tests with edge case coverage
+#### Week 11: Multiple Comparison Corrections (100% Complete) ✅
+- ✅ **Complete corrections module** - `src/accelperm/core/corrections.py`
+  - CorrectionResult dataclass for standardized result handling
+  - CorrectionMethod ABC with validation and error handling
+  - BonferroniCorrection: Conservative FWER control with alpha/n adjustment
+  - FDRCorrection: Benjamini-Hochberg procedure with conservative mode option
+  - FWERCorrection: Max-statistic method using permutation null distributions
+  - ClusterCorrection: Spatial extent and mass correction with 3D connectivity options
 
-- ✅ **FullEnumerationDetector class** - Automatic strategy selection for permutation testing
-  - Feasibility detection based on memory and computational constraints
-  - Memory requirement estimation with safety factors
-  - Automatic switching between full enumeration and Monte Carlo sampling
-  - 4 tests covering small/large sample scenarios
+- ✅ **CLI Integration** - Enhanced command-line interface
+  - New correction parameters: --correction, --alpha, --n-perm
+  - Support for correction methods: none, bonferroni, fdr, fwer, cluster
+  - Automatic fallback warnings for methods requiring permutation testing
+  - Enhanced output: corrected p-values, significance masks, detailed summaries
 
-- ✅ **VarianceSmoothing class** - Advanced variance estimation for improved statistical power
-  - Empirical Bayes shrinkage toward prior distributions
-  - Covariate-based smoothing within experimental groups
-  - Degrees of freedom adjustment for improved inference
-  - 5 tests covering multiple smoothing methods
+- ✅ **Comprehensive Testing** - `tests/unit/test_corrections.py`
+  - 27 tests total, 100% pass rate, 87.44% code coverage
+  - TDD methodology: Proper RED-GREEN-REFACTOR cycle completed
+  - Integration tests covering method comparisons and realistic workflows
+  - Validation tests covering error handling and edge cases
 
-- ✅ **TwoStagePermutation class** - Complex hierarchical design support
-  - Between-subject and within-subject permutation handling
-  - Nested experimental structure support (subject/session/condition)
-  - Blocked randomization maintaining experimental balance
-  - 4 tests covering realistic neuroimaging experimental designs
+- ✅ **Architecture Features**
+  - Abstract base class pattern for extensible correction methods
+  - Strategy pattern for different correction approaches
+  - Input validation for p-values and alpha parameters
+  - Statistical accuracy: proper FDR step-up, Bonferroni adjustment
+  - Cluster analysis: 3D connectivity (6/18/26), extent vs mass correction
+  - FSL randomise compatibility design patterns
 
-- ✅ **Integration Testing** - Cross-component validation and realistic workflows
-  - Adaptive enumeration switching based on problem characteristics
-  - Variance smoothing integration with permutation testing
-  - Two-stage permutation with Monte Carlo sampling
-  - 3 comprehensive integration tests
+### Current Git Status (Post Week 11)
+- Latest commit: e2a3514 "feat: complete Week 11 Multiple Comparison Corrections"
+- Working directory: Clean (some minor linting changes not committed)
+- New files successfully integrated:
+  - `src/accelperm/core/corrections.py` (complete implementation)
+  - `tests/unit/test_corrections.py` (comprehensive test suite)
+  - Enhanced `src/accelperm/cli.py` (correction parameters and output)
 
-#### Week 7: Backend Selection and Optimization (95% Complete)
-- ✅ **BackendFactory class** - Intelligent hardware detection and backend selection
-  - Auto-detection of MPS, CPU capabilities
-  - Memory requirement estimation for neuroimaging data dimensions
-  - Optimal backend selection based on data size and available hardware
-  - Thread-safe backend caching with singleton pattern
-  - 13 tests, 85.71% coverage
+### Test Status Update
+- **Total**: 264 tests (increased from 237)
+- **Passing**: 264 tests (100% pass rate) 
+- **Corrections Module**: 27 tests, 100% pass rate, 87.44% coverage
+- **Overall Project Coverage**: Estimated 88%+ with corrections module
 
-- ✅ **ChunkedBackendWrapper** - Memory-aware processing for large datasets
-  - Automatic chunk size calculation based on memory constraints
-  - Transparent chunking of any backend implementation
-  - Statistical validity maintained across chunk boundaries
-  - Result reconstruction from chunked processing
-  - 11 tests, 95.35% coverage
+### Architecture Progress
 
-- ✅ **CLI Integration** - Backend selection integrated into CLI
-  - Support for "auto" backend selection
-  - Manual backend override options (--backend cpu/mps/auto)
-  - Progress reporting for chunked operations
+#### Completed Architecture Components
+1. **Data I/O Layer** ✅ - Complete NIfTI, design matrix, contrast file handling
+2. **Backend Abstraction Layer** ✅ - CPU, MPS backends with factory selection
+3. **Core Engine - Statistics** ✅ - GLM computation with multiple backends  
+4. **Core Engine - Permutation** ✅ - Advanced permutation strategies
+5. **Core Engine - Correction** ✅ - Multiple comparison corrections
+6. **CLI Interface** ✅ - Full command-line interface with correction support
 
-#### Week 5: MPS Backend Foundation (Complete)
-- ✅ Full MPS backend implementation with PyTorch
-- ✅ Device management and automatic MPS detection
-- ✅ Memory management with torch.mps.empty_cache()
-- ✅ Float32/float64 compatibility layer
-- ✅ CPU fallback mechanism for OOM scenarios
-- ✅ 17 tests, 82.14% coverage
+#### Next: Core Engine - TFCE
+- Threshold-Free Cluster Enhancement implementation
+- Critical for neuroimaging spatial statistics
+- Final major statistical component needed
 
-#### Week 4: CPU Backend and CLI (Complete)
-- ✅ CPU backend with NumPy/SciPy GLM computation
-- ✅ Statistics module with OLS, t-statistics, F-statistics
-- ✅ CLI interface using Typer with Rich progress indicators
-- ✅ 141 tests passing with 86.28% overall coverage
+### Immediate Next Steps (Week 12: TFCE Implementation)
 
-### Current Git Status
-- Clean working directory after Week 10 commit
-- New files committed:
-  - `src/accelperm/core/advanced_permutation.py` (advanced permutation strategies)
-  - `tests/unit/test_advanced_permutation.py` (comprehensive test suite)
-- Previous modifications still present:
-  - Backend factory, CLI, and data chunking improvements from Week 7
+#### Research Phase
+1. Study Smith & Nichols (2009) TFCE paper
+2. Examine FSL randomise source code for TFCE implementation
+3. Review PSEUDOCODE.md for FSL-compatible TFCE algorithms
+4. Create detailed implementation plan
 
-### Test Status
-- **Total**: 237 tests
-- **Passing**: 234 tests (98.7% pass rate)
-- **Failing**: 3 tests (CLI integration tests - mock configuration issues, pre-existing)
-- **Overall Coverage**: 86.80%
-- **Advanced Permutation Module**: 85.65% coverage (21 tests, 100% pass rate)
+#### Implementation Phase (Following TDD)
+1. **Create TFCE module structure**
+   - `src/accelperm/core/tfce.py` 
+   - Define TFCE class and interface
+   - Write failing tests first (RED phase)
 
-### Next Steps
+2. **Implement basic TFCE algorithm**
+   - Threshold stepping with configurable dh parameter
+   - Connected component labeling for cluster detection
+   - Height (H) and extent (E) weighting calculations
+   - Implement minimal code to pass tests (GREEN phase)
 
-#### Immediate (Week 11: Multiple Comparison Corrections)
-1. Implement Family-Wise Error Rate (FWER) correction
-2. Implement False Discovery Rate (FDR) correction
-3. Implement cluster-based correction methods
-4. Implement voxel-wise correction methods
-5. Create comprehensive test suite for correction methods
+3. **Optimize and integrate**
+   - GPU optimization for parallel threshold iterations
+   - Memory optimization for large statistical maps
+   - Integration with existing correction framework
+   - Refactor for performance while maintaining tests (REFACTOR phase)
 
-**Note**: `src/accelperm/core/corrections.py` exists but is empty (placeholder)
+4. **Validation and testing**
+   - Compare outputs with FSL randomise TFCE results
+   - Test on known datasets for statistical accuracy
+   - Comprehensive unit tests for edge cases
+   - Performance benchmarking
 
-#### Short-term
-1. Fix remaining CLI integration test failures (mocking issues)
-2. Implement CUDA backend (Week 6 - currently skipped)
-3. Complete data transfer optimizations (deferred from Week 7)
-4. Begin Phase 3: Statistical Features (Week 9+)
+#### Technical Considerations
+- **TFCE Algorithm**: Threshold-free approach avoiding arbitrary thresholds
+- **Mathematical Formula**: TFCE(h) = ∫[0→h] e(h')^E × h'^H dh'
+- **Key Parameters**: 
+  - dh: threshold step size (typically 0.1)
+  - E: extent exponent (typically 0.5)  
+  - H: height exponent (typically 2.0)
+- **Performance**: Critical to optimize for large neuroimaging datasets
 
-### Technical Notes
+### Performance and Technical Notes
 
-#### Backend Factory Design
-- Uses singleton pattern for thread-safe backend caching
-- Estimates memory requirements: matrices + intermediate results
-- Prefers GPU when available and data fits in memory
-- Falls back to CPU for small datasets or memory constraints
+#### Current State
+- MPS backend functional but not optimized for speed
+- CPU-GPU data transfers still present performance bottleneck
+- Chunking system prevents memory issues on large datasets
+- Statistical accuracy prioritized over performance (as intended)
 
-#### Chunking Implementation
-- Calculates chunk size based on available memory (80% threshold)
-- Ensures minimum chunk size of 100 voxels
-- Preserves statistical accuracy across chunk boundaries
-- Transparent wrapper works with any backend
+#### Architecture Decisions Made
+1. **Correction Integration**: Seamlessly integrated with existing CLI and backend system
+2. **Statistical Accuracy**: All corrections follow established neuroimaging standards
+3. **Extensibility**: Abstract base class pattern allows easy addition of new correction methods
+4. **User Experience**: Automatic fallback warnings guide users to appropriate methods
 
-#### Performance Considerations
-- Current MPS implementation prioritizes correctness over speed
-- CPU-GPU transfers and scipy.stats calls limit performance
-- Performance optimizations planned for Phase 4
-- Chunking prevents OOM errors on large datasets
+### Phase 3 Statistical Features Summary
+- **Week 9: Permutation Engine Core** ✅ - 95% complete
+- **Week 10: Advanced Permutation Strategies** ✅ - 100% complete  
+- **Week 11: Multiple Comparison Corrections** ✅ - 100% complete
+- **Week 12: TFCE Implementation** - Ready to start (0% complete)
+- **Phase 3 Overall**: 75% complete
+
+### Project Milestone Achievement
+With Week 11 complete, the project now has:
+- ✅ Complete foundation infrastructure
+- ✅ GPU-accelerated backend system  
+- ✅ Advanced permutation testing capabilities
+- ✅ Comprehensive multiple comparison corrections
+- 🎯 Ready for final statistical component (TFCE)
+
+**Major Achievement**: The project now provides a nearly complete alternative to FSL randomise with modern GPU acceleration and comprehensive statistical corrections. Only TFCE implementation remains for Phase 3 completion.
 
 ### Known Issues
-1. **CLI Integration Tests**: 3 tests failing due to mock configuration
-   - Need to refine mocking strategy for BackendFactory in CLI tests
-   - Core functionality works, issue is with test setup
+1. **Minor Linting Issues**: Some trailing whitespace and formatting issues remain
+   - Pre-commit hooks cleaning up formatting automatically
+   - Core functionality unaffected
+   
+2. **Performance Optimization Deferred**: Focus remains on statistical accuracy
+   - MPS backend prioritizes correctness over speed
+   - Performance optimization planned for Phase 4
+   
+3. **CUDA Backend**: Still not implemented (Week 6 deferred)
+   - MPS backend covers Apple Silicon GPU acceleration
+   - CUDA implementation can be added in optimization phase
 
-2. **Performance**: MPS backend not yet optimized
-   - Currently uses scipy.stats for distributions (CPU fallback)
-   - Data transfers between CPU/GPU not optimized
-   - Will address in performance optimization phase
+### Success Metrics
+- ✅ **Statistical Accuracy**: All corrections follow established standards
+- ✅ **Test Coverage**: 87.44% coverage on corrections module
+- ✅ **Code Quality**: Comprehensive TDD methodology followed
+- ✅ **User Experience**: CLI integration with clear parameter options
+- ✅ **Extensibility**: Clean architecture for future enhancements
 
-### Architecture Decisions
-1. **Backend Selection**: Automatic by default, manual override available
-2. **Memory Management**: Conservative 80% memory usage threshold
-3. **Chunking**: Transparent to user, maintains statistical validity
-4. **Error Handling**: Graceful degradation from GPU to CPU on failures
-
-### Summary
-- Phase 1 (Foundation): 100% complete ✅
-- Phase 2 (GPU Acceleration): 83% complete
-  - Week 5 (MPS Backend): Complete ✅
-  - Week 6 (CUDA Backend): Not started (skipped)
-  - Week 7 (Backend Selection): 95% complete ✅
-  - Week 8 (Performance Benchmarking): Not started (deferred)
-- Phase 3 (Statistical Features): 50% complete
-  - Week 9 (Permutation Engine Core): Complete ✅
-  - Week 10 (Advanced Permutation Strategies): Complete ✅
-  - Week 11 (Multiple Comparison Corrections): Ready to start
-  - Week 12 (TFCE Implementation): Not started (placeholder file exists)
-- Ready to begin multiple comparison corrections implementation
+### Ready for Week 12
+The project is well-positioned for TFCE implementation with:
+- Solid foundation of statistical components
+- Proven TDD methodology
+- Established architecture patterns
+- Comprehensive testing framework
+- CLI integration ready for TFCE parameters

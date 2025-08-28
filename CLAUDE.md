@@ -35,8 +35,8 @@ Track progress in this section. Update after completing each task.
 **Current Phase**: Statistical Features (Weeks 9-12) - Phase 3
 - [x] Week 9: Permutation Engine Core - COMPLETE ✅
 - [x] Week 10: Advanced Permutation Strategies - COMPLETE ✅
-- [ ] Week 11: Multiple Comparison Corrections - IN PROGRESS
-- [ ] Week 12: TFCE Implementation - PENDING
+- [x] Week 11: Multiple Comparison Corrections - COMPLETE ✅
+- [ ] Week 12: TFCE Implementation - IN PROGRESS
 
 **Previous Phases COMPLETE:**
 - [x] Phase 1: Foundation (Weeks 1-4) - 100% ✅
