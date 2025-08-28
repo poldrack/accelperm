@@ -1,4 +1,4 @@
-Update the TASKS.md and SCRATCHPAD.md files to summarize the current state, ththen commit current changes.
+Update the TASKS.md and SCRATCHPAD.md files to summarize the current state, then commit current changes.
 
 /clean
 
