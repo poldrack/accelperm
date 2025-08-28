@@ -17,9 +17,7 @@ class DataChunker:
         pass
 
     def calculate_optimal_chunk_size(
-        self,
-        data_shape: tuple[int, int, int],
-        available_memory_gb: float
+        self, data_shape: tuple[int, int, int], available_memory_gb: float
     ) -> int:
         """
         Calculate optimal chunk size based on data shape and available memory.
@@ -50,7 +48,9 @@ class DataChunker:
         available_bytes = available_memory_gb * 1024**3
 
         # Calculate max voxels that fit in memory
-        max_voxels_per_chunk = int(available_bytes * 0.8 / memory_per_voxel)  # 80% safety
+        max_voxels_per_chunk = int(
+            available_bytes * 0.8 / memory_per_voxel
+        )  # 80% safety
 
         # Ensure at least 1 voxel per chunk
         max_voxels_per_chunk = max(1, max_voxels_per_chunk)
@@ -63,10 +63,7 @@ class DataChunker:
         return min(max_voxels_per_chunk, n_voxels - 1)
 
     def chunk_data(
-        self,
-        Y: np.ndarray,
-        X: np.ndarray,
-        chunk_size: int
+        self, Y: np.ndarray, X: np.ndarray, chunk_size: int
     ) -> Iterator[tuple[np.ndarray, np.ndarray, int, int]]:
         """
         Generate data chunks for processing.
@@ -94,9 +91,7 @@ class DataChunker:
             yield chunk_Y, X, start_idx, end_idx
 
     def reconstruct_results(
-        self,
-        chunk_results: list[dict[str, np.ndarray]],
-        total_voxels: int
+        self, chunk_results: list[dict[str, np.ndarray]], total_voxels: int
     ) -> dict[str, np.ndarray]:
         """
         Reconstruct full results from chunk results.
@@ -152,7 +147,7 @@ class ChunkedBackendWrapper:
         self,
         backend: Backend,
         chunk_size: int | None = None,
-        max_memory_gb: float | None = None
+        max_memory_gb: float | None = None,
     ) -> None:
         """
         Initialize chunked backend wrapper.
@@ -186,10 +181,7 @@ class ChunkedBackendWrapper:
         return self.backend.is_available()
 
     def compute_glm(
-        self,
-        Y: np.ndarray,
-        X: np.ndarray,
-        contrasts: np.ndarray
+        self, Y: np.ndarray, X: np.ndarray, contrasts: np.ndarray
     ) -> dict[str, Any]:
         """
         Compute GLM using chunked processing.
@@ -225,7 +217,9 @@ class ChunkedBackendWrapper:
 
         # Process in chunks
         chunk_results = []
-        for chunk_Y, chunk_X, _start_idx, _end_idx in self.chunker.chunk_data(Y, X, chunk_size):
+        for chunk_Y, chunk_X, _start_idx, _end_idx in self.chunker.chunk_data(
+            Y, X, chunk_size
+        ):
             chunk_result = self.backend.compute_glm(chunk_Y, chunk_X, contrasts)
             chunk_results.append(chunk_result)
 

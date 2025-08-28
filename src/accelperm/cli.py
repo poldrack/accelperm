@@ -113,7 +113,7 @@ def glm(
     """
     # Initialize backend factory
     factory = BackendFactory()
-    
+
     # Validate backend
     valid_backends = ["auto", "cpu", "mps"]
     if backend.lower() not in valid_backends:
@@ -250,7 +250,7 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
 
         # Initialize backend using factory
         factory = BackendFactory()
-        
+
         if config["backend"] == "auto":
             if config["verbose"]:
                 console.print("Auto-selecting optimal backend...")

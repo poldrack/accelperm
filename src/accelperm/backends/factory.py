@@ -29,6 +29,7 @@ class BackendFactory:
         # Check MPS availability first (prefer GPU when available)
         try:
             import torch
+
             if torch.backends.mps.is_available():
                 return self.get_backend("mps")
         except ImportError:
@@ -41,7 +42,7 @@ class BackendFactory:
         self,
         backend_name: str,
         enable_chunking: bool = False,
-        max_memory_gb: float | None = None
+        max_memory_gb: float | None = None,
     ) -> Backend:
         """
         Get a specific backend by name.
@@ -86,14 +87,16 @@ class BackendFactory:
 
         # Verify backend is available
         if not backend.is_available():
-            raise RuntimeError(f"Backend '{backend_name}' is not available on this system")
+            raise RuntimeError(
+                f"Backend '{backend_name}' is not available on this system"
+            )
 
         # Wrap with chunking if requested
         if enable_chunking:
             from accelperm.core.chunking import ChunkedBackendWrapper
+
             backend = ChunkedBackendWrapper(
-                backend=backend,
-                max_memory_gb=max_memory_gb
+                backend=backend, max_memory_gb=max_memory_gb
             )
 
         return backend
@@ -104,6 +107,7 @@ class BackendFactory:
             return CPUBackend()
         elif backend_name == "mps":
             from accelperm.backends.mps import MPSBackend
+
             return MPSBackend()
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
@@ -161,14 +165,16 @@ class BackendFactory:
         # Memory for intermediate computations
         # XtX: n_regressors^2, XtY: n_regressors * n_voxels
         intermediate_memory = (
-            n_regressors * n_regressors * 8 +  # XtX
-            n_regressors * n_voxels * 8 +      # XtY
-            n_voxels * n_regressors * 8 +      # beta
-            n_voxels * n_subjects * 8 +        # residuals
-            n_voxels * 8                       # t_stats, p_values per contrast
+            n_regressors * n_regressors * 8  # XtX
+            + n_regressors * n_voxels * 8  # XtY
+            + n_voxels * n_regressors * 8  # beta
+            + n_voxels * n_subjects * 8  # residuals
+            + n_voxels * 8  # t_stats, p_values per contrast
         )
 
-        total_bytes = data_memory + design_memory + intermediate_memory * 2  # Safety factor
+        total_bytes = (
+            data_memory + design_memory + intermediate_memory * 2
+        )  # Safety factor
         return total_bytes / (1024 * 1024)  # Convert to MB
 
     def list_available_backends(self) -> list[str]:
@@ -188,6 +194,7 @@ class BackendFactory:
         # Check MPS availability
         try:
             import torch
+
             if torch.backends.mps.is_available():
                 available.append("mps")
         except ImportError:
@@ -213,41 +220,48 @@ class BackendFactory:
 
         if backend_name == "cpu":
             # CPU capabilities
-            capabilities.update({
-                "max_memory_gb": psutil.virtual_memory().total / (1024**3),
-                "supports_float64": True,
-                "supports_float32": True,
-                "device_type": "cpu",
-                "cores": psutil.cpu_count(),
-                "parallel_processing": True,
-            })
+            capabilities.update(
+                {
+                    "max_memory_gb": psutil.virtual_memory().total / (1024**3),
+                    "supports_float64": True,
+                    "supports_float32": True,
+                    "device_type": "cpu",
+                    "cores": psutil.cpu_count(),
+                    "parallel_processing": True,
+                }
+            )
 
         elif backend_name == "mps":
             # MPS capabilities
             try:
                 import torch
+
                 if torch.backends.mps.is_available():
                     # Get system memory as proxy for GPU memory (MPS uses unified memory)
                     total_memory_gb = psutil.virtual_memory().total / (1024**3)
-                    capabilities.update({
-                        "max_memory_gb": total_memory_gb * 0.7,  # Conservative estimate
-                        "supports_float64": False,  # MPS limitation
-                        "supports_float32": True,
-                        "device_type": "mps",
-                        "cores": "unified",
-                        "parallel_processing": True,
-                        "gpu_acceleration": True,
-                    })
+                    capabilities.update(
+                        {
+                            "max_memory_gb": total_memory_gb
+                            * 0.7,  # Conservative estimate
+                            "supports_float64": False,  # MPS limitation
+                            "supports_float32": True,
+                            "device_type": "mps",
+                            "cores": "unified",
+                            "parallel_processing": True,
+                            "gpu_acceleration": True,
+                        }
+                    )
                 else:
-                    capabilities.update({
-                        "available": False,
-                        "reason": "MPS not available on this system"
-                    })
+                    capabilities.update(
+                        {
+                            "available": False,
+                            "reason": "MPS not available on this system",
+                        }
+                    )
             except ImportError:
-                capabilities.update({
-                    "available": False,
-                    "reason": "PyTorch not available"
-                })
+                capabilities.update(
+                    {"available": False, "reason": "PyTorch not available"}
+                )
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
 
