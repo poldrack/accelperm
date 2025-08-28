@@ -9,10 +9,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from accelperm.backends.factory import BackendFactory
-from accelperm.core.corrections import (
-    BonferroniCorrection,
-    FDRCorrection,
-)
+from accelperm.core.corrections import BonferroniCorrection, FDRCorrection
 from accelperm.io.contrast import ContrastLoader
 from accelperm.io.design import DesignMatrixLoader
 from accelperm.io.nifti import NiftiLoader
@@ -215,10 +212,15 @@ def glm(
         raise typer.Exit(1)
 
 
-def apply_corrections(glm_result: dict[str, Any], correction_method: str, alpha: float, verbose: bool = False) -> dict[str, Any]:
+def apply_corrections(
+    glm_result: dict[str, Any],
+    correction_method: str,
+    alpha: float,
+    verbose: bool = False,
+) -> dict[str, Any]:
     """
     Apply multiple comparison corrections to GLM results.
-    
+
     Parameters
     ----------
     glm_result : dict[str, Any]
@@ -229,7 +231,7 @@ def apply_corrections(glm_result: dict[str, Any], correction_method: str, alpha:
         Significance level
     verbose : bool
         Verbose output flag
-        
+
     Returns
     -------
     dict[str, Any]
@@ -256,7 +258,9 @@ def apply_corrections(glm_result: dict[str, Any], correction_method: str, alpha:
             # For FWER, we would need a null distribution from permutations
             # For now, fall back to Bonferroni (conservative)
             if verbose:
-                console.print("[yellow]Warning: FWER requires permutation testing. Using Bonferroni correction.[/yellow]")
+                console.print(
+                    "[yellow]Warning: FWER requires permutation testing. Using Bonferroni correction.[/yellow]"
+                )
             corrector = BonferroniCorrection()
             result = corrector.correct(contrast_p, alpha=alpha)
 
@@ -264,7 +268,9 @@ def apply_corrections(glm_result: dict[str, Any], correction_method: str, alpha:
             # For cluster correction, we would need spatial information and null distribution
             # For now, fall back to FDR
             if verbose:
-                console.print("[yellow]Warning: Cluster correction requires permutation testing. Using FDR correction.[/yellow]")
+                console.print(
+                    "[yellow]Warning: Cluster correction requires permutation testing. Using FDR correction.[/yellow]"
+                )
             corrector = FDRCorrection()
             result = corrector.correct(contrast_p, alpha=alpha)
 
@@ -275,7 +281,9 @@ def apply_corrections(glm_result: dict[str, Any], correction_method: str, alpha:
 
         if verbose:
             n_significant = np.sum(result.significant_mask)
-            console.print(f"  Contrast {i+1}: {n_significant}/{n_voxels} significant voxels")
+            console.print(
+                f"  Contrast {i+1}: {n_significant}/{n_voxels} significant voxels"
+            )
 
     return correction_results
 
@@ -415,13 +423,25 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
                 corrected_p_map = corrected_result.corrected_p_values.reshape(-1, 1, 1)
 
                 # Save corrected p-values
-                corrected_output = config["output_dir"] / f"corrp_{contrast_name}_{config['correction']}.nii.gz"
-                output_writer.save_p_value_map(corrected_p_map, affine, corrected_output)
+                corrected_output = (
+                    config["output_dir"]
+                    / f"corrp_{contrast_name}_{config['correction']}.nii.gz"
+                )
+                output_writer.save_p_value_map(
+                    corrected_p_map, affine, corrected_output
+                )
 
                 # Save significance mask
-                sig_map = corrected_result.significant_mask.astype(float).reshape(-1, 1, 1)
-                sig_output = config["output_dir"] / f"sig_{contrast_name}_{config['correction']}.nii.gz"
-                output_writer.save_statistical_map(sig_map, affine, sig_output, "significance")
+                sig_map = corrected_result.significant_mask.astype(float).reshape(
+                    -1, 1, 1
+                )
+                sig_output = (
+                    config["output_dir"]
+                    / f"sig_{contrast_name}_{config['correction']}.nii.gz"
+                )
+                output_writer.save_statistical_map(
+                    sig_map, affine, sig_output, "significance"
+                )
 
         # Create summary
         summary_output = config["output_dir"] / "results_summary.txt"
@@ -443,7 +463,9 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
                 result = correction_results[f"contrast_{i}"]
                 n_significant = int(np.sum(result.significant_mask))
                 results_summary[f"contrast_{i}_significant_voxels"] = n_significant
-                results_summary[f"contrast_{i}_min_corrected_p"] = float(result.corrected_p_values.min())
+                results_summary[f"contrast_{i}_min_corrected_p"] = float(
+                    result.corrected_p_values.min()
+                )
 
         from accelperm.io.output import create_results_summary
 

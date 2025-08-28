@@ -5,7 +5,7 @@ This module implements various multiple comparison correction techniques
 commonly used in neuroimaging analysis, following FSL randomise compatibility.
 
 Key correction methods:
-- Family-Wise Error Rate (FWER) control using max-statistic method  
+- Family-Wise Error Rate (FWER) control using max-statistic method
 - False Discovery Rate (FDR) control using Benjamini-Hochberg procedure
 - Bonferroni correction for voxel-wise control
 - Cluster-based correction for spatial extent and mass
@@ -24,12 +24,12 @@ from scipy.ndimage import label as scipy_label
 @dataclass
 class CorrectionResult:
     """Results from multiple comparison correction.
-    
+
     Parameters
     ----------
     p_values : np.ndarray
         Original uncorrected p-values
-    corrected_p_values : np.ndarray  
+    corrected_p_values : np.ndarray
         Corrected p-values after multiple comparison adjustment
     threshold : float
         Statistical threshold used for significance determination
@@ -42,6 +42,7 @@ class CorrectionResult:
     cluster_info : Optional[Dict[str, Any]]
         Additional information for cluster-based corrections
     """
+
     p_values: np.ndarray
     corrected_p_values: np.ndarray
     threshold: float
@@ -55,9 +56,11 @@ class CorrectionMethod(ABC):
     """Abstract base class for multiple comparison correction methods."""
 
     @abstractmethod
-    def correct(self, data: np.ndarray, alpha: float = 0.05, **kwargs) -> CorrectionResult:
+    def correct(
+        self, data: np.ndarray, alpha: float = 0.05, **kwargs
+    ) -> CorrectionResult:
         """Apply multiple comparison correction.
-        
+
         Parameters
         ----------
         data : np.ndarray
@@ -66,7 +69,7 @@ class CorrectionMethod(ABC):
             Significance level for correction
         **kwargs
             Method-specific parameters
-            
+
         Returns
         -------
         CorrectionResult
@@ -96,21 +99,21 @@ class CorrectionMethod(ABC):
 
 class BonferroniCorrection(CorrectionMethod):
     """Bonferroni correction for multiple comparisons.
-    
+
     The most conservative correction method that controls Family-Wise Error Rate
     by adjusting the significance threshold to alpha/n where n is the number of tests.
     """
 
     def correct(self, p_values: np.ndarray, alpha: float = 0.05) -> CorrectionResult:
         """Apply Bonferroni correction.
-        
+
         Parameters
         ----------
         p_values : np.ndarray
             Uncorrected p-values
         alpha : float, default=0.05
             Family-wise error rate to control
-            
+
         Returns
         -------
         CorrectionResult
@@ -136,20 +139,20 @@ class BonferroniCorrection(CorrectionMethod):
             threshold=threshold,
             significant_mask=significant_mask,
             method="bonferroni",
-            n_comparisons=n_comparisons
+            n_comparisons=n_comparisons,
         )
 
 
 class FDRCorrection(CorrectionMethod):
     """False Discovery Rate correction using Benjamini-Hochberg procedure.
-    
+
     Controls the expected proportion of false discoveries among rejected hypotheses.
     Less conservative than FWER methods, allowing for more statistical power.
     """
 
     def __init__(self, conservative: bool = False):
         """Initialize FDR correction.
-        
+
         Parameters
         ----------
         conservative : bool, default=False
@@ -159,14 +162,14 @@ class FDRCorrection(CorrectionMethod):
 
     def correct(self, p_values: np.ndarray, alpha: float = 0.05) -> CorrectionResult:
         """Apply Benjamini-Hochberg FDR correction.
-        
+
         Parameters
         ----------
         p_values : np.ndarray
             Uncorrected p-values
         alpha : float, default=0.05
             False discovery rate to control
-            
+
         Returns
         -------
         CorrectionResult
@@ -185,7 +188,7 @@ class FDRCorrection(CorrectionMethod):
                 threshold=alpha,
                 significant_mask=p_values <= alpha,
                 method="fdr_bh",
-                n_comparisons=n_comparisons
+                n_comparisons=n_comparisons,
             )
 
         # Calculate correction factor for dependent tests if requested
@@ -231,7 +234,7 @@ class FDRCorrection(CorrectionMethod):
             # BH adjustment: p_adj = min(previous_adj, p * m / rank * correction_factor)
             current_adjusted = min(
                 previous_adjusted,
-                sorted_p_values[i] * n_comparisons / rank * correction_factor
+                sorted_p_values[i] * n_comparisons / rank * correction_factor,
             )
             adjusted_p_values[original_idx] = current_adjusted
             previous_adjusted = current_adjusted
@@ -247,20 +250,20 @@ class FDRCorrection(CorrectionMethod):
             threshold=threshold,
             significant_mask=significant_mask,
             method="fdr_bh",
-            n_comparisons=n_comparisons
+            n_comparisons=n_comparisons,
         )
 
 
 class FWERCorrection(CorrectionMethod):
     """Family-Wise Error Rate correction using max-statistic method.
-    
+
     Controls the probability of making one or more false discoveries across
     all tests by using the maximum statistic from the null distribution.
     """
 
     def __init__(self, null_distribution: np.ndarray):
         """Initialize FWER correction.
-        
+
         Parameters
         ----------
         null_distribution : np.ndarray, shape (n_permutations, n_voxels)
@@ -272,16 +275,18 @@ class FWERCorrection(CorrectionMethod):
         # Calculate maximum statistic for each permutation
         self.max_null_distribution = np.max(null_distribution, axis=1)
 
-    def correct(self, observed_statistics: np.ndarray, alpha: float = 0.05) -> CorrectionResult:
+    def correct(
+        self, observed_statistics: np.ndarray, alpha: float = 0.05
+    ) -> CorrectionResult:
         """Apply FWER correction using max-statistic method.
-        
+
         Parameters
         ----------
         observed_statistics : np.ndarray
             Observed test statistics (not p-values)
         alpha : float, default=0.05
             Family-wise error rate to control
-            
+
         Returns
         -------
         CorrectionResult
@@ -298,7 +303,7 @@ class FWERCorrection(CorrectionMethod):
             warnings.warn(
                 f"Only {n_permutations} permutations available for alpha={alpha}. "
                 f"Need at least {min_permutations_needed} permutations for reliable inference.",
-                UserWarning
+                UserWarning,
             )
 
         # Calculate FWER-corrected p-values
@@ -321,24 +326,26 @@ class FWERCorrection(CorrectionMethod):
             threshold=threshold,
             significant_mask=significant_mask,
             method="fwer_max_stat",
-            n_comparisons=n_comparisons
+            n_comparisons=n_comparisons,
         )
 
 
 class ClusterCorrection(CorrectionMethod):
     """Cluster-based correction for spatial extent or mass.
-    
+
     Corrects for multiple comparisons by considering spatially connected
     clusters of activation rather than individual voxels.
     """
 
-    def __init__(self,
-                 null_cluster_sizes: np.ndarray,
-                 voxel_threshold: float,
-                 connectivity: int = 26,
-                 correction_type: str = "extent"):
+    def __init__(
+        self,
+        null_cluster_sizes: np.ndarray,
+        voxel_threshold: float,
+        connectivity: int = 26,
+        correction_type: str = "extent",
+    ):
         """Initialize cluster correction.
-        
+
         Parameters
         ----------
         null_cluster_sizes : np.ndarray
@@ -359,12 +366,14 @@ class ClusterCorrection(CorrectionMethod):
         if connectivity not in [6, 18, 26]:
             raise ValueError(f"Connectivity must be 6, 18, or 26, got {connectivity}")
 
-    def correct(self,
-                statistics: np.ndarray,
-                alpha: float = 0.05,
-                spatial_shape: tuple[int, ...] | None = None) -> CorrectionResult:
+    def correct(
+        self,
+        statistics: np.ndarray,
+        alpha: float = 0.05,
+        spatial_shape: tuple[int, ...] | None = None,
+    ) -> CorrectionResult:
         """Apply cluster-based correction.
-        
+
         Parameters
         ----------
         statistics : np.ndarray
@@ -373,7 +382,7 @@ class ClusterCorrection(CorrectionMethod):
             Cluster-wise error rate to control
         spatial_shape : Tuple[int, ...], optional
             Original spatial shape of statistics for 3D processing
-            
+
         Returns
         -------
         CorrectionResult
@@ -416,10 +425,10 @@ class ClusterCorrection(CorrectionMethod):
                 method=self.method,
                 n_comparisons=len(statistics),
                 cluster_info={
-                    'cluster_sizes': np.array([]),
-                    'cluster_labels': cluster_labels.flatten(),
-                    'n_clusters': 0
-                }
+                    "cluster_sizes": np.array([]),
+                    "cluster_labels": cluster_labels.flatten(),
+                    "n_clusters": 0,
+                },
             )
 
         # Calculate cluster sizes or masses
@@ -464,19 +473,21 @@ class ClusterCorrection(CorrectionMethod):
         threshold = np.percentile(self.null_cluster_sizes, threshold_percentile)
 
         return CorrectionResult(
-            p_values=np.ones(len(statistics)),  # Original p-values not directly available
+            p_values=np.ones(
+                len(statistics)
+            ),  # Original p-values not directly available
             corrected_p_values=corrected_p_values,
             threshold=threshold,
             significant_mask=significant_mask,
             method=self.method,
             n_comparisons=len(statistics),
             cluster_info={
-                'cluster_sizes': cluster_sizes,
-                'cluster_labels': cluster_labels.flatten(),
-                'cluster_p_values': cluster_p_values,
-                'n_clusters': n_clusters,
-                'significant_clusters': significant_clusters
-            }
+                "cluster_sizes": cluster_sizes,
+                "cluster_labels": cluster_labels.flatten(),
+                "cluster_p_values": cluster_p_values,
+                "n_clusters": n_clusters,
+                "significant_clusters": significant_clusters,
+            },
         )
 
     def _calculate_cluster_p_values(self, observed_sizes: np.ndarray) -> np.ndarray:
@@ -489,14 +500,14 @@ class ClusterCorrection(CorrectionMethod):
 
         return p_values
 
-    def _calculate_cluster_masses(self, stats_spatial: np.ndarray,
-                                  cluster_labels: np.ndarray,
-                                  n_clusters: int) -> np.ndarray:
+    def _calculate_cluster_masses(
+        self, stats_spatial: np.ndarray, cluster_labels: np.ndarray, n_clusters: int
+    ) -> np.ndarray:
         """Calculate cluster masses (sum of statistics within clusters)."""
         cluster_masses = np.zeros(n_clusters)
 
         for i in range(1, n_clusters + 1):
             cluster_mask = cluster_labels == i
-            cluster_masses[i-1] = np.sum(stats_spatial[cluster_mask])
+            cluster_masses[i - 1] = np.sum(stats_spatial[cluster_mask])
 
         return cluster_masses
