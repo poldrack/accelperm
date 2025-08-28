@@ -26,7 +26,16 @@ class BackendFactory:
         Backend
             The optimal backend for the current system
         """
-        # Check MPS availability first (prefer GPU when available)
+        # Check GPU-optimized backend availability first
+        try:
+            import torch
+
+            if torch.cuda.is_available() or torch.backends.mps.is_available():
+                return self.get_backend("gpu_optimized")
+        except ImportError:
+            pass
+
+        # Check MPS availability
         try:
             import torch
 
@@ -71,7 +80,7 @@ class BackendFactory:
         backend_name = backend_name.lower()
 
         # Validate backend name
-        valid_backends = ["cpu", "mps"]
+        valid_backends = ["cpu", "mps", "gpu_optimized"]
         if backend_name not in valid_backends:
             raise ValueError(
                 f"Invalid backend '{backend_name}'. "
@@ -109,6 +118,10 @@ class BackendFactory:
             from accelperm.backends.mps import MPSBackend
 
             return MPSBackend()
+        elif backend_name == "gpu_optimized":
+            from accelperm.backends.gpu_optimized import GPUOptimizedBackend
+
+            return GPUOptimizedBackend()
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
 
@@ -136,11 +149,14 @@ class BackendFactory:
         if flops < 1e6 or memory_mb < 10:
             return self.get_backend("cpu")
 
-        # Large datasets: prefer GPU if available
+        # Large datasets: prefer GPU-optimized backend if available
         try:
-            return self.get_backend("mps")
+            return self.get_backend("gpu_optimized")
         except (ValueError, RuntimeError):
-            return self.get_backend("cpu")
+            try:
+                return self.get_backend("mps")
+            except (ValueError, RuntimeError):
+                return self.get_backend("cpu")
 
     def estimate_memory_requirements(self, data_shape: tuple[int, int, int]) -> float:
         """
@@ -191,9 +207,12 @@ class BackendFactory:
         # CPU is always available
         available.append("cpu")
 
-        # Check MPS availability
+        # Check GPU backends availability
         try:
             import torch
+
+            if torch.cuda.is_available() or torch.backends.mps.is_available():
+                available.append("gpu_optimized")
 
             if torch.backends.mps.is_available():
                 available.append("mps")
@@ -256,6 +275,47 @@ class BackendFactory:
                         {
                             "available": False,
                             "reason": "MPS not available on this system",
+                        }
+                    )
+            except ImportError:
+                capabilities.update(
+                    {"available": False, "reason": "PyTorch not available"}
+                )
+        elif backend_name == "gpu_optimized":
+            # GPU-optimized backend capabilities
+            try:
+                import torch
+
+                if torch.cuda.is_available() or torch.backends.mps.is_available():
+                    device_type = "cuda" if torch.cuda.is_available() else "mps"
+                    if device_type == "cuda":
+                        total_memory_gb = torch.cuda.get_device_properties(
+                            0
+                        ).total_memory / (1024**3)
+                    else:
+                        # MPS uses unified memory
+                        total_memory_gb = (
+                            psutil.virtual_memory().total / (1024**3) * 0.7
+                        )
+
+                    capabilities.update(
+                        {
+                            "max_memory_gb": total_memory_gb,
+                            "supports_float64": device_type == "cuda",
+                            "supports_float32": True,
+                            "device_type": device_type,
+                            "cores": "gpu",
+                            "parallel_processing": True,
+                            "gpu_acceleration": True,
+                            "batch_processing": True,
+                            "vectorized_permutations": True,
+                        }
+                    )
+                else:
+                    capabilities.update(
+                        {
+                            "available": False,
+                            "reason": "No GPU available (CUDA or MPS)",
                         }
                     )
             except ImportError:

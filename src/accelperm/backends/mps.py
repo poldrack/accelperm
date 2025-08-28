@@ -90,9 +90,30 @@ class MPSBackend(Backend):
         # Compute GLM: beta = (X'X)^(-1) X'Y
         # For Y: (n_voxels, n_subjects), X: (n_subjects, n_regressors)
         XtX = X.T @ X  # (n_regressors, n_regressors)
-        XtX_inv = torch.pinverse(XtX)  # Use pseudoinverse for numerical stability
-        XtY = X.T @ Y.T  # (n_regressors, n_voxels)
-        beta = (XtX_inv @ XtY).T  # (n_voxels, n_regressors)
+
+        # Use MPS-compatible matrix inversion
+        # Add regularization for numerical stability
+        reg_factor = 1e-8
+        XtX_reg = XtX + reg_factor * torch.eye(
+            XtX.shape[0], device=self.device, dtype=XtX.dtype
+        )
+
+        try:
+            # Try Cholesky decomposition (faster for positive definite matrices)
+            L = torch.linalg.cholesky(XtX_reg)
+            XtX_inv = torch.cholesky_inverse(L)
+            XtY = X.T @ Y.T  # (n_regressors, n_voxels)
+            beta = (XtX_inv @ XtY).T  # (n_voxels, n_regressors)
+        except RuntimeError:
+            # Fall back to QR-based solve if Cholesky fails
+            XtY = X.T @ Y.T  # (n_regressors, n_voxels)
+            beta = torch.linalg.solve(XtX_reg, XtY).T  # (n_voxels, n_regressors)
+            # Still need the inverse for variance calculations
+            try:
+                XtX_inv = torch.linalg.inv(XtX_reg)
+            except RuntimeError:
+                # If inversion fails, use solve for each contrast individually
+                XtX_inv = None
 
         # Compute residuals
         Y_pred = (X @ beta.T).T  # (n_voxels, n_subjects)
@@ -117,7 +138,13 @@ class MPSBackend(Backend):
             contrast_effects = beta @ contrast  # (n_voxels,)
 
             # Standard error: sqrt(c' (X'X)^(-1) c * MSE)
-            contrast_var = contrast @ XtX_inv @ contrast  # scalar
+            if XtX_inv is not None:
+                contrast_var = contrast @ XtX_inv @ contrast  # scalar
+            else:
+                # Solve (X'X) v = c for variance calculation if inverse not available
+                v = torch.linalg.solve(XtX_reg, contrast)
+                contrast_var = contrast @ v
+
             se = torch.sqrt(contrast_var * mse)  # (n_voxels,)
 
             # T-statistic
