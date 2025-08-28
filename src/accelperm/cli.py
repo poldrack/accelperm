@@ -116,7 +116,7 @@ def glm(
     correction: str = typer.Option(
         "fdr",
         "--correction",
-        help="Multiple comparison correction method (none, bonferroni, fdr, fwer, cluster)",
+        help="Multiple comparison correction method (none, bonferroni, fdr, fwer, cluster, tfce)",
         case_sensitive=False,
     ),
     alpha: float = typer.Option(
@@ -125,6 +125,25 @@ def glm(
         help="Significance level for correction",
         min=0.001,
         max=0.5,
+    ),
+    tfce_height: float = typer.Option(
+        2.0,
+        "--tfce-height",
+        help="TFCE height exponent (H parameter)",
+        min=0.1,
+        max=10.0,
+    ),
+    tfce_extent: float = typer.Option(
+        0.5,
+        "--tfce-extent",
+        help="TFCE extent exponent (E parameter)",
+        min=0.1,
+        max=5.0,
+    ),
+    tfce_connectivity: int = typer.Option(
+        26,
+        "--tfce-connectivity",
+        help="TFCE spatial connectivity (6, 18, or 26 for 3D)",
     ),
 ) -> None:
     """
@@ -145,7 +164,7 @@ def glm(
         raise typer.Exit(1)
 
     # Validate correction method
-    valid_corrections = ["none", "bonferroni", "fdr", "fwer", "cluster"]
+    valid_corrections = ["none", "bonferroni", "fdr", "fwer", "cluster", "tfce"]
     if correction.lower() not in valid_corrections:
         console.print(
             f"[red]Error: Invalid correction method '{correction}'. Valid options: {', '.join(valid_corrections)}[/red]"
@@ -166,6 +185,9 @@ def glm(
         "n_permutations": n_permutations,
         "correction": correction.lower(),
         "alpha": alpha,
+        "tfce_height": tfce_height,
+        "tfce_extent": tfce_extent,
+        "tfce_connectivity": tfce_connectivity,
     }
 
     if verbose:
@@ -217,6 +239,9 @@ def apply_corrections(
     correction_method: str,
     alpha: float,
     verbose: bool = False,
+    tfce_height: float = 2.0,
+    tfce_extent: float = 0.5,
+    tfce_connectivity: int = 26,
 ) -> dict[str, Any]:
     """
     Apply multiple comparison corrections to GLM results.
@@ -231,6 +256,12 @@ def apply_corrections(
         Significance level
     verbose : bool
         Verbose output flag
+    tfce_height : float
+        TFCE height exponent (H parameter)
+    tfce_extent : float
+        TFCE extent exponent (E parameter)
+    tfce_connectivity : int
+        TFCE spatial connectivity
 
     Returns
     -------
@@ -270,6 +301,16 @@ def apply_corrections(
             if verbose:
                 console.print(
                     "[yellow]Warning: Cluster correction requires permutation testing. Using FDR correction.[/yellow]"
+                )
+            corrector = FDRCorrection()
+            result = corrector.correct(contrast_p, alpha=alpha)
+
+        elif correction_method == "tfce":
+            # For TFCE, we would need test statistics (not p-values) and null distribution
+            # For now, fall back to FDR
+            if verbose:
+                console.print(
+                    "[yellow]Warning: TFCE requires test statistics and permutation testing. Using FDR correction.[/yellow]"
                 )
             corrector = FDRCorrection()
             result = corrector.correct(contrast_p, alpha=alpha)
@@ -393,7 +434,13 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
                 console.print(f"Applying {config['correction'].upper()} correction...")
 
             correction_results = apply_corrections(
-                glm_result, config["correction"], config["alpha"], config["verbose"]
+                glm_result,
+                config["correction"],
+                config["alpha"],
+                config["verbose"],
+                config["tfce_height"],
+                config["tfce_extent"],
+                config["tfce_connectivity"],
             )
 
         # Save results
