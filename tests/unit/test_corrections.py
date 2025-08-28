@@ -16,6 +16,7 @@ from accelperm.core.corrections import (
     CorrectionResult,
     FDRCorrection,
     FWERCorrection,
+    TFCECorrection,
 )
 
 
@@ -557,3 +558,127 @@ class TestCorrectionValidation:
         # Single p-value corrections
         assert bonf_result.corrected_p_values[0] == 0.03  # No correction needed
         assert fdr_result.corrected_p_values[0] == 0.03  # No correction needed
+
+
+class TestTFCECorrection:
+    """Test TFCE correction functionality."""
+
+    def test_tfce_correction_exists(self):
+        """Test TFCECorrection class exists."""
+        null_distribution = np.random.randn(100, 50)
+        correction = TFCECorrection(null_distribution)
+
+        assert isinstance(correction, TFCECorrection)
+        assert correction.method == "tfce"
+        assert correction.height_power == 2.0
+        assert correction.extent_power == 0.5
+        assert correction.connectivity == 26
+        assert correction.n_steps == 100
+
+    def test_tfce_correction_with_custom_params(self):
+        """Test TFCECorrection with custom parameters."""
+        null_distribution = np.random.randn(50, 25)
+        correction = TFCECorrection(
+            null_distribution,
+            height_power=1.5,
+            extent_power=0.8,
+            connectivity=6,
+            n_steps=50,
+        )
+
+        assert correction.height_power == 1.5
+        assert correction.extent_power == 0.8
+        assert correction.connectivity == 6
+        assert correction.n_steps == 50
+
+    def test_tfce_correction_simple_statistics(self):
+        """Test TFCE correction on simple statistical map."""
+        # Create null distribution with TFCE-enhanced statistics
+        np.random.seed(42)
+        null_distribution = np.random.randn(1000, 20) * 2
+
+        correction = TFCECorrection(
+            null_distribution, n_steps=10
+        )  # Fewer steps for speed
+
+        # Create observed statistics with some "activations"
+        observed_stats = np.random.randn(20) * 0.5
+        observed_stats[5:10] = np.random.randn(5) * 3 + 4  # Strong cluster
+
+        spatial_shape = (4, 5)  # 2D spatial arrangement
+
+        result = correction.correct(
+            observed_stats, alpha=0.05, spatial_shape=spatial_shape
+        )
+
+        # Check result structure
+        assert isinstance(result, CorrectionResult)
+        assert result.method == "tfce"
+        assert len(result.corrected_p_values) == 20
+        assert len(result.significant_mask) == 20
+        assert result.n_comparisons == 20
+
+        # Check TFCE-specific cluster info
+        assert "tfce_enhanced" in result.cluster_info
+        assert "height_power" in result.cluster_info
+        assert "extent_power" in result.cluster_info
+        assert result.cluster_info["height_power"] == 2.0
+
+    def test_tfce_correction_3d_statistics(self):
+        """Test TFCE correction on 3D statistical data."""
+        # Create 3D null distribution
+        np.random.seed(123)
+        spatial_shape = (5, 4, 3)
+        n_voxels = np.prod(spatial_shape)
+        null_distribution = np.random.randn(500, n_voxels)
+
+        correction = TFCECorrection(
+            null_distribution, n_steps=5
+        )  # Very few steps for speed
+
+        # Create 3D statistical map
+        observed_stats = np.random.randn(n_voxels) * 0.3
+        # Add a 3D cluster
+        observed_stats[10:15] = np.random.randn(5) + 3
+
+        result = correction.correct(observed_stats, spatial_shape=spatial_shape)
+
+        assert result.method == "tfce"
+        assert len(result.corrected_p_values) == n_voxels
+        assert "tfce_enhanced" in result.cluster_info
+
+        # TFCE enhancement should modify the statistics
+        tfce_enhanced = result.cluster_info["tfce_enhanced"]
+        assert not np.array_equal(tfce_enhanced, observed_stats)
+
+    def test_tfce_correction_no_significant_voxels(self):
+        """Test TFCE correction with no significant findings."""
+        # Null distribution with large values
+        null_distribution = np.random.randn(100, 16) * 5 + 10
+        correction = TFCECorrection(null_distribution, n_steps=5)
+
+        # Weak observed statistics
+        observed_stats = np.random.randn(16) * 0.1
+        spatial_shape = (4, 4)
+
+        result = correction.correct(observed_stats, spatial_shape=spatial_shape)
+
+        # Should find no significant voxels
+        assert not np.any(result.significant_mask)
+        assert np.all(result.corrected_p_values > 0.05)
+
+    def test_tfce_correction_permutation_warning(self):
+        """Test TFCE correction warns with insufficient permutations."""
+        # Very few permutations
+        null_distribution = np.random.randn(10, 9)
+        correction = TFCECorrection(null_distribution, n_steps=5)
+
+        observed_stats = np.random.randn(9)
+        spatial_shape = (3, 3)
+
+        with pytest.warns(UserWarning, match="Only 10 permutations available"):
+            result = correction.correct(
+                observed_stats, spatial_shape=spatial_shape, alpha=0.01
+            )
+
+        assert isinstance(result, CorrectionResult)

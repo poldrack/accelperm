@@ -511,3 +511,130 @@ class ClusterCorrection(CorrectionMethod):
             cluster_masses[i - 1] = np.sum(stats_spatial[cluster_mask])
 
         return cluster_masses
+
+
+class TFCECorrection(CorrectionMethod):
+    """Threshold-Free Cluster Enhancement correction method.
+
+    Applies TFCE enhancement to statistical maps followed by permutation-based
+    correction for multiple comparisons. TFCE integrates cluster extent and
+    height information across multiple threshold levels without requiring
+    arbitrary threshold selection.
+    """
+
+    def __init__(
+        self,
+        null_distribution: np.ndarray,
+        height_power: float = 2.0,
+        extent_power: float = 0.5,
+        connectivity: int = 26,
+        n_steps: int = 100,
+    ):
+        """Initialize TFCE correction.
+
+        Parameters
+        ----------
+        null_distribution : np.ndarray, shape (n_permutations, n_voxels)
+            Null distribution from TFCE-enhanced permutation testing
+        height_power : float, default=2.0
+            TFCE height exponent (H parameter)
+        extent_power : float, default=0.5
+            TFCE extent exponent (E parameter)
+        connectivity : int, default=26
+            Spatial connectivity for cluster detection
+        n_steps : int, default=100
+            Number of threshold steps for TFCE integration
+        """
+        self.null_distribution = null_distribution
+        self.height_power = height_power
+        self.extent_power = extent_power
+        self.connectivity = connectivity
+        self.n_steps = n_steps
+        self.method = "tfce"
+
+        # Calculate maximum statistic for each permutation
+        self.max_null_distribution = np.max(null_distribution, axis=1)
+
+    def correct(
+        self,
+        statistics: np.ndarray,
+        alpha: float = 0.05,
+        spatial_shape: tuple[int, ...] | None = None,
+        **kwargs,
+    ) -> CorrectionResult:
+        """Apply TFCE correction.
+
+        Parameters
+        ----------
+        statistics : np.ndarray
+            Observed test statistics (not p-values)
+        alpha : float, default=0.05
+            Family-wise error rate to control
+        spatial_shape : Tuple[int, ...], optional
+            Original spatial shape of statistics for TFCE processing
+
+        Returns
+        -------
+        CorrectionResult
+            TFCE-corrected results
+        """
+        from .tfce import TFCEProcessor
+
+        self._validate_alpha(alpha)
+
+        if spatial_shape is None:
+            # Assume 1D if no shape provided
+            spatial_shape = (len(statistics),)
+
+        # Apply TFCE enhancement to observed statistics
+        processor = TFCEProcessor(
+            height_power=self.height_power,
+            extent_power=self.extent_power,
+            connectivity=self.connectivity,
+            n_steps=self.n_steps,
+        )
+
+        tfce_enhanced = processor.enhance(statistics, spatial_shape)
+
+        # Calculate TFCE-corrected p-values using null distribution
+        n_comparisons = len(statistics)
+        n_permutations = len(self.max_null_distribution)
+
+        # Warn if insufficient permutations
+        min_permutations_needed = int(1.0 / alpha)
+        if n_permutations < min_permutations_needed:
+            warnings.warn(
+                f"Only {n_permutations} permutations available for alpha={alpha}. "
+                f"Need at least {min_permutations_needed} permutations for reliable inference.",
+                UserWarning,
+            )
+
+        # Calculate corrected p-values
+        corrected_p_values = np.zeros(n_comparisons)
+
+        for i, tfce_stat in enumerate(tfce_enhanced):
+            # P-value = proportion of max null TFCE stats >= observed TFCE stat
+            corrected_p_values[i] = np.mean(self.max_null_distribution >= tfce_stat)
+
+        # Significance determination
+        significant_mask = corrected_p_values <= alpha
+
+        # Calculate threshold (95th percentile for reporting)
+        threshold_percentile = (1 - alpha) * 100
+        threshold = np.percentile(self.max_null_distribution, threshold_percentile)
+
+        return CorrectionResult(
+            p_values=corrected_p_values,  # These are already corrected p-values
+            corrected_p_values=corrected_p_values,
+            threshold=threshold,
+            significant_mask=significant_mask,
+            method="tfce",
+            n_comparisons=n_comparisons,
+            cluster_info={
+                "tfce_enhanced": tfce_enhanced,
+                "height_power": self.height_power,
+                "extent_power": self.extent_power,
+                "connectivity": self.connectivity,
+                "n_steps": self.n_steps,
+            },
+        )
