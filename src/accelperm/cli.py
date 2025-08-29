@@ -1171,17 +1171,24 @@ def run_glm(config: dict[str, Any]) -> dict[str, Any]:
             else "N/A (streaming mode)",
         }
 
-        # Add correction summary for each method
+        # Add correction summary for each method (skip detailed results in streaming mode)
         for method, method_results in correction_results.items():
-            for i in range(contrasts.shape[0]):
-                result = method_results[f"contrast_{i}"]
-                n_significant = int(np.sum(result.significant_mask))
-                results_summary[
-                    f"contrast_{i}_{method}_significant_voxels"
-                ] = n_significant
-                results_summary[f"contrast_{i}_{method}_min_corrected_p"] = float(
-                    result.corrected_p_values.min()
-                )
+            # Check if this is streaming mode (placeholder structure)
+            if isinstance(method_results, dict) and "note" in method_results and "streaming" in method_results["note"]:
+                # Streaming mode: Add basic method info only
+                results_summary[f"{method}_correction"] = "Applied during streaming computation"
+                results_summary[f"{method}_alpha"] = method_results.get("alpha", "N/A")
+            else:
+                # Traditional mode: Add detailed per-contrast results
+                for i in range(contrasts.shape[0]):
+                    result = method_results[f"contrast_{i}"]
+                    n_significant = int(np.sum(result.significant_mask))
+                    results_summary[
+                        f"contrast_{i}_{method}_significant_voxels"
+                    ] = n_significant
+                    results_summary[f"contrast_{i}_{method}_min_corrected_p"] = float(
+                        result.corrected_p_values.min()
+                    )
 
         from accelperm.io.output import create_results_summary
 
