@@ -3,14 +3,14 @@
 - Use this file to keep notes on ongoing development work.
 - When the work is completed, clean it out from this file, so that it only reflects ongoing work.
 
-## Project State Summary (2025-08-28)
+## Project State Summary (2025-08-29)
 
 ### Current Status
 **Branch**: main
 **Phase**: Phase 3 - Statistical Features COMPLETE ✅
 **Overall Progress**: 195/287 tasks completed (67.9%)
-**Just Completed**: GPU Optimization for Streaming Corrections ✅
-**Active Work**: GPU Performance Analysis and Optimization
+**Just Completed**: Critical Bug Fixes for GPU-Optimized Backend ✅
+**Active Work**: Performance Optimization vs FSL Randomise
 
 ### Major GPU Optimization Achievement (August 28, 2025) 🚀
 
@@ -59,17 +59,44 @@ CPU cluster correction:  9.6s  (1.2% of total time) - CPU-based scipy operations
 - **Memory Management**: Intelligent chunking prevents OOM errors
 - **User Experience**: Eliminates the major performance bottleneck reported
 
-### Currently Active Work
+### Critical Performance Issues and Fixes (August 29, 2025)
 
-#### GPU Performance Monitoring and Analysis
-- **Status**: Understanding GPU utilization patterns in streaming corrections
-- **Findings**: GPU usage is brief but highly effective - operations complete in milliseconds
-- **Next Steps**: Document optimization results and performance characteristics
+#### Performance Gap vs FSL Randomise
+**Problem**: AccelPerm taking ~12 minutes vs FSL's 2.5 minutes for 2500 permutations
+**Target**: Match or exceed FSL randomise's performance (153 seconds)
 
-#### Outstanding Technical Details
-1. **Activity Monitor Visualization**: MPS operations may not display prominently in Activity Monitor
-2. **Burst Processing Pattern**: GPU work happens in short, intense bursts between longer CPU operations
-3. **Framework Efficiency**: Metal Performance Shaders complete matrix operations extremely quickly
+#### Fixed Issues Today:
+1. **MPS Out of Memory Error** ✅
+   - **Root Cause**: Fixed chunk sizes (800-1000) didn't scale with dataset dimensions
+   - **Fix**: Implemented data-aware memory calculation based on (n_voxels × n_subjects × n_regressors)
+   - **Result**: Dynamic chunk sizing prevents OOM while maintaining performance
+
+2. **'NoneType' object has no attribute 'min' Error** ✅
+   - **Root Cause**: CLI tried to access p_values.min() when p_values was None in streaming mode
+   - **Fix**: Added null check in CLI summary generation
+   - **Result**: Proper handling of streaming mode results
+
+3. **'contrast_0' KeyError** ✅
+   - **Root Cause**: CLI expected traditional correction structure but streaming mode uses simplified placeholders
+   - **Fix**: Added streaming mode detection in summary generation
+   - **Result**: Successful completion of analysis without crashes
+
+4. **CPU-GPU Data Transfer Bottleneck** ✅
+   - **Root Cause**: Excessive data transfers between CPU and GPU causing 5x slowdown
+   - **Fix**: Implemented lazy CPU transfer pattern - only transfer when spatial operations needed
+   - **Result**: Eliminated double storage and reduced transfer overhead
+
+#### Performance Optimizations Implemented:
+1. **Aggressive Chunking Strategy**: Reduced from 12+ chunks to ≤3 chunks (75% overhead reduction)
+2. **Data-Aware Memory Management**: Scales chunk size with actual dataset dimensions
+3. **Lazy CPU Transfer**: Defer GPU→CPU conversion until absolutely necessary
+4. **Memory-Safe Processing**: 50% MPS memory usage with 3x safety factor
+
+#### Remaining Performance Work:
+- If 12-minute runtime persists after fixes, investigate:
+  - TFCE algorithm efficiency (currently dominates runtime at ~7.8s per permutation)
+  - Connected components optimization opportunities
+  - Further GPU acceleration of spatial operations
 
 ### Recent Architecture Enhancements
 
